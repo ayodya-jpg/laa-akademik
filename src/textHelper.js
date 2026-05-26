@@ -1,250 +1,105 @@
-function normalizeText(text) {
-  return String(text || "")
-    .toLowerCase()
-    .replace(/[-_/]/g, " ")
-    .replace(/[^\w\s.]/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+const Groq = require("groq-sdk");
+require("dotenv").config();
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY
+});
+
+function buildFallbackAnswer(question, context, sourceTitle) {
+  const shortContext = String(context || "")
+    .replace(/\n{3,}/g, "\n\n")
+    .slice(0, 1800);
+
+  return `Saya menemukan informasi yang kemungkinan relevan dari ${sourceTitle}, tetapi saat ini layanan AI sedang terkena batas penggunaan token Groq.
+
+Berikut ringkasan data yang tersedia dari dataset:
+
+${shortContext}
+
+Silakan coba ulang beberapa saat lagi agar jawaban bisa diringkas lebih natural oleh AI.`;
 }
 
-function expandSynonyms(text) {
-  let result = normalizeText(text);
+function isRateLimitError(error) {
+  const message =
+    error?.error?.error?.message ||
+    error?.error?.message ||
+    error?.message ||
+    "";
 
-  const synonymMap = [
-    ["krs an", "krs registrasi perwalian"],
-    ["krs", "krs registrasi perwalian"],
-    ["irs", "krs registrasi perwalian"],
-    ["perwalian", "registrasi perwalian krs"],
-
-    ["ubah matkul", "prs perubahan rencana studi"],
-    ["ganti matkul", "prs perubahan rencana studi"],
-    ["ganti mata kuliah", "prs perubahan rencana studi"],
-    ["prs", "prs perubahan rencana studi"],
-
-    ["mulai kuliah", "minggu perkuliahan mulai kuliah"],
-    ["awal kuliah", "minggu perkuliahan mulai kuliah"],
-
-    ["ta", "tugas akhir skripsi sidang pendaftaran sidang"],
-    ["tugas akhir", "ta skripsi sidang pendaftaran sidang"],
-    ["skripsi", "tugas akhir skripsi sidang"],
-    ["sidang ta", "sidang tugas akhir pendaftaran sidang"],
-    ["sidang tugas akhir", "pendaftaran sidang tugas akhir"],
-    ["pendaftaran ta", "pendaftaran sidang tugas akhir"],
-    ["daftar sidang", "pendaftaran sidang tugas akhir"],
-    ["daftar sidang ta", "pendaftaran sidang tugas akhir"],
-    ["syarat sidang", "persyaratan sidang tugas akhir"],
-    ["syarat sidang ta", "persyaratan sidang tugas akhir"],
-    ["berkas sidang", "dokumen persyaratan sidang tugas akhir"],
-
-    ["lulus", "kelulusan yudisium wisuda"],
-    ["sidang", "sidang tugas akhir yudisium"],
-
-    ["nilai", "nilai nsm nmk indeks mutu"],
-    ["ips", "ips ipk sks"],
-    ["ipk", "ips ipk sks"],
-    ["sks", "sks beban studi"],
-
-    ["dosen wali", "dosen wali perwalian"],
-    ["pengampu", "dosen pengampu mata kuliah"],
-
-    ["kelas", "kelas jadwal kuliah ruang"],
-    ["ruangan", "ruang kelas laboratorium"],
-    ["lab", "laboratorium ruang kelas"]
-  ];
-
-  synonymMap.forEach(([key, value]) => {
-    if (result.includes(key)) {
-      result += " " + value;
-    }
-  });
-
-  return result;
+  return (
+    message.toLowerCase().includes("rate limit") ||
+    message.toLowerCase().includes("rate_limit_exceeded") ||
+    message.toLowerCase().includes("tokens per day")
+  );
 }
 
-function detectIntent(message) {
-  const text = expandSynonyms(message);
-
-  const intents = {
-    kalender: [
-      "kalender",
-      "jadwal akademik",
-      "registrasi",
-      "perwalian",
-      "krs",
-      "prs",
-      "perubahan rencana studi",
-      "mulai kuliah",
-      "minggu perkuliahan",
-      "semester genap",
-      "semester ganjil",
-      "wisuda",
-      "yudisium",
-      "tanggal",
-      "periode",
-      "deadline",
-      "batas akhir"
-    ],
-
-    pedoman: [
-      "pedoman",
-      "aturan",
-      "ketentuan",
-      "sks",
-      "ips",
-      "ipk",
-      "nilai",
-      "nsm",
-      "nmk",
-      "cuti",
-      "undur diri",
-      "nonaktif",
-      "masa studi",
-      "kelulusan",
-      "dosen wali"
-    ],
-
-    tugas_akhir: [
-      "ta",
-      "tugas akhir",
-      "skripsi",
-      "sidang",
-      "sidang ta",
-      "sidang tugas akhir",
-      "pendaftaran sidang",
-      "pendaftaran sidang ta",
-      "daftar sidang",
-      "daftar sidang ta",
-      "syarat sidang",
-      "syarat sidang ta",
-      "berkas sidang",
-      "dokumen sidang",
-      "pembimbing",
-      "penguji",
-      "proposal ta",
-      "laporan ta"
-    ],
-
-    dosen: [
-      "dosen",
-      "pengampu",
-      "nama dosen",
-      "kode dosen",
-      "prodi",
-      "nidn",
-      "dosen wali"
-    ],
-
-    jadwal: [
-      "jadwal kuliah",
-      "jadwal kelas",
-      "kelas",
-      "ruang",
-      "ruangan",
-      "laboratorium",
-      "lab",
-      "mata kuliah",
-      "matkul",
-      "hari",
-      "jam",
-      "shift",
-      "sbs",
-      "ktt",
-      "kuliah"
-    ]
-  };
-
-  const scores = {};
-
-  for (const [intent, keywords] of Object.entries(intents)) {
-    scores[intent] = 0;
-
-    keywords.forEach((keyword) => {
-      if (text.includes(keyword)) {
-        scores[intent] += keyword.split(" ").length;
-      }
-    });
+async function askGroq(question, context, sourceTitle) {
+  if (
+    !process.env.GROQ_API_KEY ||
+    process.env.GROQ_API_KEY === "isi_api_key_groq_kamu"
+  ) {
+    return buildFallbackAnswer(question, context, sourceTitle);
   }
 
-  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  const [topIntent, topScore] = sorted[0];
+  const trimmedContext = String(context || "").slice(0, 3500);
 
-  return topScore > 0 ? topIntent : "umum";
-}
+  const prompt = `
+Kamu adalah LAA Akademik Bot, chatbot layanan administrasi akademik Telkom University Surabaya.
 
-function getKeywords(message) {
-  const stopwords = [
-    "apa",
-    "aja",
-    "saja",
-    "yang",
-    "di",
-    "ke",
-    "dari",
-    "dan",
-    "atau",
-    "itu",
-    "ini",
-    "aku",
-    "saya",
-    "mau",
-    "ingin",
-    "tolong",
-    "dong",
-    "ya",
-    "kak",
-    "bro",
-    "min",
-    "admin",
-    "untuk",
-    "dengan",
-    "adalah",
-    "bagaimana",
-    "gimana",
-    "berapa",
-    "kapan",
-    "dimana",
-    "mana",
-    "bisa",
-    "boleh",
-    "minta",
-    "info",
-    "informasi"
-  ];
+Tugasmu:
+1. Jawab pertanyaan user hanya berdasarkan konteks data yang diberikan.
+2. Jangan mengarang informasi di luar konteks.
+3. Jika data tidak cukup, jelaskan bahwa informasi belum tersedia atau belum cukup jelas pada dataset.
+4. Gunakan bahasa Indonesia yang ramah, natural, dan mudah dipahami mahasiswa.
+5. Jika konteks berasal dari jadwal kuliah, rangkum dengan format rapi: hari, jam, mata kuliah, kelas, ruang, dan dosen jika tersedia.
+6. Jika konteks berasal dari kalender akademik, sebutkan nama kegiatan dan tanggal/periode yang relevan.
+7. Jika konteks berasal dari pedoman akademik, jelaskan aturan dengan singkat.
+8. Jika konteks berasal dari panduan sidang TA, jelaskan alur, syarat, atau berkas secara runtut.
+9. Jangan menyebut istilah teknis seperti chunk, konteks 1, dataset mentah, atau retrieval.
 
-  return expandSynonyms(message)
-    .split(" ")
-    .filter((word) => word.length > 2 && !stopwords.includes(word));
-}
+Pertanyaan user:
+${question}
 
-function scoreTextByKeywords(text, keywords) {
-  const normalized = normalizeText(text);
-  let score = 0;
+Konteks data:
+${trimmedContext}
 
-  keywords.forEach((keyword) => {
-    const key = normalizeText(keyword);
+Sumber utama:
+${sourceTitle}
+`;
 
-    if (!key) return;
+  try {
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Kamu adalah chatbot akademik yang ramah, hemat kata, teliti, dan hanya menjawab berdasarkan dataset."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 450
+    });
 
-    if (normalized.includes(key)) {
-      score += key.length > 4 ? 3 : 1;
+    return (
+      completion.choices[0]?.message?.content ||
+      "Maaf, saya belum dapat membuat jawaban dari data yang tersedia."
+    );
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      return buildFallbackAnswer(question, trimmedContext, sourceTitle);
     }
 
-    const words = key.split(" ");
+    console.error("Groq Error:", error?.error || error?.message || error);
 
-    words.forEach((word) => {
-      if (word.length > 2 && normalized.includes(word)) {
-        score += 1;
-      }
-    });
-  });
-
-  return score;
+    return buildFallbackAnswer(question, trimmedContext, sourceTitle);
+  }
 }
 
 module.exports = {
-  normalizeText,
-  expandSynonyms,
-  detectIntent,
-  getKeywords,
-  scoreTextByKeywords
+  askGroq
 };

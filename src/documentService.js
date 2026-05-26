@@ -10,7 +10,7 @@ const { getSource } = require("./sourceService");
 
 let documentsCache = [];
 
-function splitIntoChunks(text, maxLength = 1400) {
+function splitIntoChunks(text, maxLength = 900) {
   const cleanedText = String(text || "")
     .replace(/\r/g, "\n")
     .replace(/\n{3,}/g, "\n\n");
@@ -204,7 +204,7 @@ function searchRelevantDocuments(message) {
   return {
     intent,
     keywords,
-    results: results.slice(0, 10)
+    results: results.slice(0, 4)
   };
 }
 
