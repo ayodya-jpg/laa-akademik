@@ -1,0 +1,30 @@
+{
+  "name": "laa-akademik",
+  "version": "1.0.0",
+  "description": "Chatbot Layanan Administrasi Akademik Telkom University Surabaya berbasis Website dan WhatsApp",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "wa": "node src/waBot.js"
+  },
+  "keywords": [
+    "chatbot",
+    "akademik",
+    "groq",
+    "rag",
+    "whatsapp"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "groq-sdk": "^1.2.0",
+    "multer": "^2.1.1",
+    "pdf-parse": "^1.1.1",
+    "xlsx": "^0.18.5"
+  }
+}

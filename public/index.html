@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>LAA Akademik Bot</title>
+
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="site-bg">
+    <!-- NAVBAR -->
+    <header class="navbar">
+      <div class="nav-brand">
+        <div class="nav-logo">TUS</div>
+        <div>
+          <h1>LAA Akademik Bot</h1>
+          <p>Student Service Center • Telkom University Surabaya</p>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <a href="#layanan">Layanan</a>
+        <a href="#knowledge">Knowledge Base</a>
+        <a href="#alur">Alur Sistem</a>
+
+        <a
+          href="https://wa.me/6281333249642?text=Halo%20CS%20LAA%20Akademik%2C%20saya%20ingin%20bertanya%20terkait%20layanan%20akademik."
+          target="_blank"
+          class="wa-button"
+        >
+          WhatsApp CS
+        </a>
+
+        <button id="openChatTop" class="nav-button">Mulai Chat</button>
+      </nav>
+    </header>
+
+    <!-- LANDING PAGE -->
+    <section id="dashboardPage" class="landing-page">
+      <!-- HERO -->
+      <section class="hero-section">
+        <div class="hero-left">
+          <span class="hero-badge">Layanan Administrasi Akademik</span>
+
+          <h2>Asisten digital untuk informasi akademik Telkom University Surabaya</h2>
+
+          <p>
+            LAA Akademik Bot membantu mahasiswa mencari informasi akademik secara cepat
+            berdasarkan sumber data akademik yang tersedia. Pengguna dapat bertanya
+            dengan bahasa alami seperti sedang mengobrol dengan petugas layanan akademik.
+          </p>
+
+          <div class="hero-actions">
+            <button id="openChatHero" class="primary-button">Tanya Sekarang</button>
+
+            <a
+              href="https://wa.me/6281333249642?text=Halo%20CS%20LAA%20Akademik%2C%20saya%20ingin%20bertanya%20terkait%20layanan%20akademik."
+              target="_blank"
+              class="whatsapp-button"
+            >
+              Hubungi CS WhatsApp
+            </a>
+
+            <a href="#layanan" class="secondary-button">Lihat Layanan</a>
+          </div>
+        </div>
+
+        <div class="hero-right">
+          <div class="chat-preview-card">
+            <div class="preview-header">
+              <div class="preview-avatar">🎓</div>
+              <div>
+                <strong>LAA Akademik Bot</strong>
+                <small>Online • siap membantu</small>
+              </div>
+            </div>
+
+            <div class="preview-chat bot">
+              Halo! Ada informasi akademik yang ingin ditanyakan?
+            </div>
+
+            <div class="preview-chat user">
+              Kapan registrasi semester genap?
+            </div>
+
+            <div class="preview-chat bot">
+              Saya akan mencari informasinya berdasarkan kalender akademik yang tersedia.
+            </div>
+
+            <div class="preview-input">
+              <span>Tulis pertanyaan kamu...</span>
+              <button>↗</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STATISTIC -->
+      <section class="stats-section">
+        <div class="stat-card">
+          <span>📄</span>
+          <h3>2</h3>
+          <p>Dokumen Akademik Utama</p>
+        </div>
+
+        <div class="stat-card">
+          <span>📊</span>
+          <h3>2</h3>
+          <p>Data Akademik Pendukung</p>
+        </div>
+
+        <div class="stat-card">
+          <span>🧭</span>
+          <h3>7</h3>
+          <p>Kategori Layanan Informasi</p>
+        </div>
+
+        <div class="stat-card">
+          <span>💬</span>
+          <h3>2</h3>
+          <p>Kanal Chatbot Web dan WhatsApp</p>
+        </div>
+      </section>
+
+      <!-- SERVICE -->
+      <section id="layanan" class="section-block">
+        <div class="section-heading">
+          <span>🧩</span>
+          <div>
+            <h2>Layanan yang Didukung</h2>
+            <p>Pilih layanan untuk langsung bertanya melalui chatbot.</p>
+          </div>
+        </div>
+
+        <div class="service-grid">
+          <button class="service-card" data-message="kapan registrasi semester genap?">
+            <span>📅</span>
+            <h3>Kalender Akademik</h3>
+            <p>Registrasi, PRS, perkuliahan, yudisium, dan wisuda.</p>
+          </button>
+
+          <button class="service-card" data-message="apa saja aturan pedoman akademik?">
+            <span>📘</span>
+            <h3>Pedoman Akademik</h3>
+            <p>Aturan akademik, masa studi, cuti, penilaian, dan kelulusan.</p>
+          </button>
+
+          <button class="service-card" data-message="berapa maksimal sks kalau ips di atas 3?">
+            <span>🎓</span>
+            <h3>SKS, IPS, IPK, Nilai</h3>
+            <p>Beban studi, indeks prestasi, nilai, dan aturan pengambilan SKS.</p>
+          </button>
+
+          <button class="service-card" data-message="apa syarat tugas akhir?">
+            <span>📝</span>
+            <h3>Tugas Akhir</h3>
+            <p>Skripsi, sidang, pembimbing, penguji, dan ketentuan TA.</p>
+          </button>
+
+          <button class="service-card" data-message="kapan yudisium?">
+            <span>🎉</span>
+            <h3>Yudisium / Wisuda</h3>
+            <p>Informasi kelulusan, yudisium, ijazah, transkrip, dan wisuda.</p>
+          </button>
+
+          <button class="service-card" data-message="data dosen">
+            <span>👨‍🏫</span>
+            <h3>Data Dosen</h3>
+            <p>Informasi dosen, program studi, dan pengampu mata kuliah.</p>
+          </button>
+
+          <button class="service-card" data-message="jadwal kuliah semester genap">
+            <span>🏫</span>
+            <h3>Jadwal Kuliah</h3>
+            <p>Informasi kelas, ruang, hari, jam, dan mata kuliah.</p>
+          </button>
+        </div>
+      </section>
+
+      <!-- KNOWLEDGE BASE -->
+      <section id="knowledge" class="knowledge-section">
+        <div class="knowledge-left">
+          <div class="section-heading">
+            <span>📊</span>
+            <div>
+              <h2>Ringkasan Knowledge Base</h2>
+              <p>Informasi akademik yang tersedia dan dapat ditanyakan melalui chatbot.</p>
+            </div>
+          </div>
+
+          <div class="knowledge-list">
+            <div class="knowledge-item">
+              <div class="knowledge-icon">📅</div>
+              <div>
+                <h3>Agenda Akademik</h3>
+                <p>Registrasi, perwalian, PRS, perkuliahan, yudisium, dan wisuda.</p>
+              </div>
+            </div>
+
+            <div class="knowledge-item">
+              <div class="knowledge-icon">📘</div>
+              <div>
+                <h3>Aturan Akademik</h3>
+                <p>SKS, masa studi, cuti akademik, nilai, tugas akhir, dan kelulusan.</p>
+              </div>
+            </div>
+
+            <div class="knowledge-item">
+              <div class="knowledge-icon">👨‍🏫</div>
+              <div>
+                <h3>Informasi Dosen</h3>
+                <p>Data pendukung terkait dosen, program studi, dan pengampu mata kuliah.</p>
+              </div>
+            </div>
+
+            <div class="knowledge-item">
+              <div class="knowledge-icon">🏫</div>
+              <div>
+                <h3>Jadwal Perkuliahan</h3>
+                <p>Informasi kelas, ruang, hari, jam, dan mata kuliah semester berjalan.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="knowledge-right">
+          <h3>Cakupan Informasi Chatbot</h3>
+          <p class="coverage-note">Estimasi cakupan informasi berdasarkan kategori layanan.</p>
+
+          <div class="coverage-item">
+            <div class="coverage-label">
+              <span>Agenda Akademik</span>
+              <strong>90%</strong>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width: 90%;"></div>
+            </div>
+          </div>
+
+          <div class="coverage-item">
+            <div class="coverage-label">
+              <span>Pedoman Akademik</span>
+              <strong>85%</strong>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width: 85%;"></div>
+            </div>
+          </div>
+
+          <div class="coverage-item">
+            <div class="coverage-label">
+              <span>Jadwal Kuliah</span>
+              <strong>80%</strong>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width: 80%;"></div>
+            </div>
+          </div>
+
+          <div class="coverage-item">
+            <div class="coverage-label">
+              <span>Informasi Dosen</span>
+              <strong>70%</strong>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width: 70%;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FLOW -->
+      <section id="alur" class="flow-section">
+        <div class="section-heading">
+          <span>⚙️</span>
+          <div>
+            <h2>Alur Kerja Sistem</h2>
+            <p>Chatbot membaca pertanyaan pengguna, mencari informasi relevan, lalu menyusun jawaban.</p>
+          </div>
+        </div>
+
+        <div class="flow-grid">
+          <div class="flow-card">
+            <span>1</span>
+            <h3>Mahasiswa Bertanya</h3>
+            <p>Pengguna bertanya menggunakan bahasa alami melalui website atau WhatsApp.</p>
+          </div>
+
+          <div class="flow-card">
+            <span>2</span>
+            <h3>Sistem Mencari Data</h3>
+            <p>Chatbot mencocokkan pertanyaan dengan sumber informasi akademik yang tersedia.</p>
+          </div>
+
+          <div class="flow-card">
+            <span>3</span>
+            <h3>Jawaban Disusun</h3>
+            <p>Bot menyusun jawaban yang lebih mudah dipahami berdasarkan konteks data.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CUSTOMER SERVICE -->
+      <section class="cs-section">
+        <div>
+          <span>Butuh bantuan langsung?</span>
+          <h2>Hubungi Customer Service LAA Akademik</h2>
+          <p>
+            Jika informasi dari chatbot belum cukup, kamu dapat menghubungi layanan CS
+            akademik melalui WhatsApp.
+          </p>
+        </div>
+
+        <a
+          href="https://wa.me/6281333249642?text=Halo%20CS%20LAA%20Akademik%2C%20saya%20ingin%20bertanya%20terkait%20layanan%20akademik."
+          target="_blank"
+          class="cs-large-button"
+        >
+          WhatsApp CS: +62 813-3324-9642
+        </a>
+      </section>
+    </section>
+
+    <!-- CHATBOT PAGE -->
+    <section id="chatPage" class="chat-page hidden">
+      <aside class="chat-sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-badge">LAA • SSC</div>
+          <h2>LAA Akademik Bot</h2>
+          <p>Asisten digital layanan administrasi akademik Telkom University Surabaya.</p>
+          <button id="backDashboard" class="back-button">← Kembali ke Beranda</button>
+        </div>
+
+        <div class="sidebar-service">
+          <h3>Layanan Cepat</h3>
+
+          <button class="service-item" data-message="kapan registrasi semester genap?">📅 Kalender Akademik</button>
+          <button class="service-item" data-message="apa saja aturan pedoman akademik?">📘 Pedoman Akademik</button>
+          <button class="service-item" data-message="berapa maksimal sks kalau ips di atas 3?">🎓 SKS & Nilai</button>
+          <button class="service-item" data-message="apa syarat tugas akhir?">📝 Tugas Akhir</button>
+          <button class="service-item" data-message="kapan yudisium?">🎉 Yudisium / Wisuda</button>
+          <button class="service-item" data-message="data dosen">👨‍🏫 Data Dosen</button>
+          <button class="service-item" data-message="jadwal kuliah semester genap">🏫 Jadwal Kuliah</button>
+        </div>
+
+        <div class="sidebar-cs">
+          <h3>Customer Service</h3>
+          <p>Butuh bantuan langsung dari CS akademik?</p>
+          <a
+            href="https://wa.me/6281333249642?text=Halo%20CS%20LAA%20Akademik%2C%20saya%20ingin%20bertanya%20terkait%20layanan%20akademik."
+            target="_blank"
+          >
+            WhatsApp CS
+          </a>
+        </div>
+      </aside>
+
+      <main class="chat-panel">
+        <header class="chat-header">
+          <div class="bot-profile">
+            <div class="bot-avatar">🎓</div>
+            <div>
+              <h2>LAA Akademik Bot</h2>
+              <p>Student Service Center • Layanan Akademik</p>
+            </div>
+          </div>
+
+          <div class="chat-header-actions">
+            <a
+              href="https://wa.me/6281333249642?text=Halo%20CS%20LAA%20Akademik%2C%20saya%20ingin%20bertanya%20terkait%20layanan%20akademik."
+              target="_blank"
+              class="chat-wa-button"
+            >
+              CS WhatsApp
+            </a>
+
+            <div class="online-pill">
+              <span></span>
+              Online
+            </div>
+          </div>
+        </header>
+
+        <section class="chat-intro">
+          <span>Selamat datang 👋</span>
+          <h3>Apa informasi akademik yang kamu butuhkan?</h3>
+          <p>Ketik pertanyaanmu atau gunakan menu cepat yang tersedia.</p>
+        </section>
+
+        <section class="suggestion-row">
+          <button data-message="menu">Menu</button>
+          <button data-message="kapan registrasi semester genap?">Registrasi</button>
+          <button data-message="kapan PRS?">PRS</button>
+          <button data-message="berapa maksimal SKS?">SKS</button>
+          <button data-message="kapan yudisium?">Yudisium</button>
+          <button data-message="jadwal kuliah kelas IS-06-01">Jadwal Kuliah</button>
+        </section>
+
+        <section id="chatBox" class="chat-box"></section>
+
+        <form id="chatForm" class="chat-form">
+          <input
+            id="userInput"
+            type="text"
+            placeholder="Tulis pertanyaan kamu di sini..."
+            autocomplete="off"
+          />
+          <button type="submit">Kirim</button>
+        </form>
+      </main>
+    </section>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>
