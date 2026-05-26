@@ -35,20 +35,23 @@ function splitIntoChunks(text, maxLength = 1400) {
       if ((current + " " + sentence).length <= maxLength) {
         current += " " + sentence;
       } else {
-        if (current.trim()) chunks.push(current.trim());
+        if (current.trim()) {
+          chunks.push(current.trim());
+        }
+
         current = sentence;
       }
     });
 
-    if (current.trim()) chunks.push(current.trim());
+    if (current.trim()) {
+      chunks.push(current.trim());
+    }
   });
 
   return chunks;
 }
 
 async function loadDocuments() {
-  console.log("Memuat dataset akademik...");
-
   documentsCache = [];
 
   const pdfFiles = [
@@ -61,11 +64,21 @@ async function loadDocuments() {
       fileName: "pedoman-akademik2026.pdf",
       intent: "pedoman",
       type: "pdf"
+    },
+    {
+      fileName: "panduan-pendaftaran-sidang-TA.pdf",
+      intent: "tugas_akhir",
+      type: "pdf"
     }
   ];
 
   for (const file of pdfFiles) {
     const pdfText = await readPdf(file.fileName);
+
+    if (!pdfText || pdfText.trim().length === 0) {
+      continue;
+    }
+
     const chunks = splitIntoChunks(pdfText);
 
     chunks.forEach((chunk, index) => {
@@ -105,8 +118,6 @@ async function loadDocuments() {
       });
     });
   });
-
-  console.log(`Dataset berhasil dimuat: ${documentsCache.length} potongan data`);
 }
 
 function searchRelevantDocuments(message) {
@@ -132,21 +143,47 @@ function searchRelevantDocuments(message) {
     let score = scoreTextByKeywords(doc.content, keywords);
 
     if (doc.intent === intent) {
-      score += 3;
+      score += 5;
     }
 
     if (normalizedContent.includes(normalizedMessage)) {
-      score += 8;
+      score += 10;
     }
 
-    // Bonus untuk pertanyaan jadwal agar baris Excel lebih kuat
     if (intent === "jadwal" && doc.type === "excel") {
       score += 4;
     }
 
-    // Bonus untuk dosen agar data Excel dosen lebih kuat
     if (intent === "dosen" && doc.type === "excel") {
       score += 4;
+    }
+
+    if (
+      intent === "tugas_akhir" &&
+      doc.fileName === "panduan-pendaftaran-sidang-TA.pdf"
+    ) {
+      score += 12;
+    }
+
+    if (
+      normalizedMessage.includes("sidang") &&
+      doc.fileName === "panduan-pendaftaran-sidang-TA.pdf"
+    ) {
+      score += 15;
+    }
+
+    if (
+      normalizedMessage.includes("daftar") &&
+      doc.fileName === "panduan-pendaftaran-sidang-TA.pdf"
+    ) {
+      score += 15;
+    }
+
+    if (
+      normalizedMessage.includes("pendaftaran") &&
+      doc.fileName === "panduan-pendaftaran-sidang-TA.pdf"
+    ) {
+      score += 15;
     }
 
     if (score > 0) {

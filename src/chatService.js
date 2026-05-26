@@ -37,19 +37,21 @@ Silakan pilih menu berikut:
 2. Pedoman Akademik
 3. Informasi SKS, IPS, IPK, dan Nilai
 4. Informasi Tugas Akhir / Skripsi
-5. Informasi Yudisium / Wisuda
-6. Data Dosen
-7. Jadwal Kuliah
+5. Informasi Pendaftaran Sidang TA
+6. Informasi Yudisium / Wisuda
+7. Data Dosen
+8. Jadwal Kuliah
 
 Kamu juga bisa langsung bertanya dengan bahasa bebas.
 
 Contoh:
 - "kapan registrasi semester genap?"
-- "kapan perkuliahan dimulai?"
 - "berapa maksimal SKS kalau IPS di atas 3?"
 - "apa syarat tugas akhir?"
-- "jadwal kuliah kelas IS-06-01 hari Rabu?"
-- "siapa dosen pengampu tata kelola?"`;
+- "bagaimana cara daftar sidang TA?"
+- "apa saja berkas sidang TA?"
+- "kapan yudisium?"
+- "jadwal kuliah kelas IS-06-01 hari Rabu?"`;
 }
 
 function convertMenuToQuestion(message) {
@@ -60,9 +62,10 @@ function convertMenuToQuestion(message) {
     "2": "pedoman akademik aturan akademik mahasiswa masa studi cuti perwalian",
     "3": "aturan SKS IPS IPK nilai NSM NMK indeks mutu mahasiswa",
     "4": "tugas akhir skripsi sidang pembimbing penguji laporan tugas akhir",
-    "5": "yudisium wisuda kelulusan ijazah transkrip akademik",
-    "6": "data dosen nama dosen prodi kode dosen dosen pengampu",
-    "7": "jadwal kuliah kelas ruang hari jam mata kuliah dosen pengampu"
+    "5": "pendaftaran sidang tugas akhir syarat sidang ta berkas sidang ta daftar sidang ta",
+    "6": "yudisium wisuda kelulusan ijazah transkrip akademik",
+    "7": "data dosen nama dosen prodi kode dosen dosen pengampu",
+    "8": "jadwal kuliah kelas ruang hari jam mata kuliah dosen pengampu"
   };
 
   return menuMap[text] || message;
@@ -73,12 +76,15 @@ function buildFallbackAnswer() {
 
 Agar saya bisa bantu lebih tepat, coba tulis pertanyaan dengan detail seperti:
 - nama kegiatan akademik, misalnya "registrasi", "PRS", "yudisium", atau "wisuda"
+- topik TA, misalnya "syarat sidang TA", "daftar sidang TA", atau "berkas sidang TA"
 - nama kelas, misalnya "IS-06-01"
 - nama mata kuliah
 - nama dosen
 - hari atau jam kuliah
 
 Contoh:
+"bagaimana cara daftar sidang TA?"
+"apa saja syarat sidang TA?"
 "jadwal kuliah kelas IS-06-01 hari Rabu"
 "kapan registrasi semester genap?"
 "berapa maksimal SKS mahasiswa sarjana?"

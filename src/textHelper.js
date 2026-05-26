@@ -15,22 +15,38 @@ function expandSynonyms(text) {
     ["krs", "krs registrasi perwalian"],
     ["irs", "krs registrasi perwalian"],
     ["perwalian", "registrasi perwalian krs"],
+
     ["ubah matkul", "prs perubahan rencana studi"],
     ["ganti matkul", "prs perubahan rencana studi"],
     ["ganti mata kuliah", "prs perubahan rencana studi"],
     ["prs", "prs perubahan rencana studi"],
+
     ["mulai kuliah", "minggu perkuliahan mulai kuliah"],
     ["awal kuliah", "minggu perkuliahan mulai kuliah"],
-    ["ta", "tugas akhir skripsi sidang"],
+
+    ["ta", "tugas akhir skripsi sidang pendaftaran sidang"],
+    ["tugas akhir", "ta skripsi sidang pendaftaran sidang"],
     ["skripsi", "tugas akhir skripsi sidang"],
+    ["sidang ta", "sidang tugas akhir pendaftaran sidang"],
+    ["sidang tugas akhir", "pendaftaran sidang tugas akhir"],
+    ["pendaftaran ta", "pendaftaran sidang tugas akhir"],
+    ["daftar sidang", "pendaftaran sidang tugas akhir"],
+    ["daftar sidang ta", "pendaftaran sidang tugas akhir"],
+    ["syarat sidang", "persyaratan sidang tugas akhir"],
+    ["syarat sidang ta", "persyaratan sidang tugas akhir"],
+    ["berkas sidang", "dokumen persyaratan sidang tugas akhir"],
+
     ["lulus", "kelulusan yudisium wisuda"],
     ["sidang", "sidang tugas akhir yudisium"],
+
     ["nilai", "nilai nsm nmk indeks mutu"],
     ["ips", "ips ipk sks"],
     ["ipk", "ips ipk sks"],
     ["sks", "sks beban studi"],
+
     ["dosen wali", "dosen wali perwalian"],
     ["pengampu", "dosen pengampu mata kuliah"],
+
     ["kelas", "kelas jadwal kuliah ruang"],
     ["ruangan", "ruang kelas laboratorium"],
     ["lab", "laboratorium ruang kelas"]
@@ -68,6 +84,7 @@ function detectIntent(message) {
       "deadline",
       "batas akhir"
     ],
+
     pedoman: [
       "pedoman",
       "aturan",
@@ -81,13 +98,32 @@ function detectIntent(message) {
       "cuti",
       "undur diri",
       "nonaktif",
-      "tugas akhir",
-      "skripsi",
-      "sidang",
       "masa studi",
       "kelulusan",
       "dosen wali"
     ],
+
+    tugas_akhir: [
+      "ta",
+      "tugas akhir",
+      "skripsi",
+      "sidang",
+      "sidang ta",
+      "sidang tugas akhir",
+      "pendaftaran sidang",
+      "pendaftaran sidang ta",
+      "daftar sidang",
+      "daftar sidang ta",
+      "syarat sidang",
+      "syarat sidang ta",
+      "berkas sidang",
+      "dokumen sidang",
+      "pembimbing",
+      "penguji",
+      "proposal ta",
+      "laporan ta"
+    ],
+
     dosen: [
       "dosen",
       "pengampu",
@@ -97,6 +133,7 @@ function detectIntent(message) {
       "nidn",
       "dosen wali"
     ],
+
     jadwal: [
       "jadwal kuliah",
       "jadwal kelas",
@@ -136,11 +173,42 @@ function detectIntent(message) {
 
 function getKeywords(message) {
   const stopwords = [
-    "apa", "aja", "saja", "yang", "di", "ke", "dari", "dan", "atau",
-    "itu", "ini", "aku", "saya", "mau", "ingin", "tolong", "dong",
-    "ya", "kak", "bro", "min", "admin", "untuk", "dengan", "adalah",
-    "bagaimana", "gimana", "berapa", "kapan", "dimana", "mana",
-    "bisa", "boleh", "minta", "info", "informasi"
+    "apa",
+    "aja",
+    "saja",
+    "yang",
+    "di",
+    "ke",
+    "dari",
+    "dan",
+    "atau",
+    "itu",
+    "ini",
+    "aku",
+    "saya",
+    "mau",
+    "ingin",
+    "tolong",
+    "dong",
+    "ya",
+    "kak",
+    "bro",
+    "min",
+    "admin",
+    "untuk",
+    "dengan",
+    "adalah",
+    "bagaimana",
+    "gimana",
+    "berapa",
+    "kapan",
+    "dimana",
+    "mana",
+    "bisa",
+    "boleh",
+    "minta",
+    "info",
+    "informasi"
   ];
 
   return expandSynonyms(message)
@@ -162,6 +230,7 @@ function scoreTextByKeywords(text, keywords) {
     }
 
     const words = key.split(" ");
+
     words.forEach((word) => {
       if (word.length > 2 && normalized.includes(word)) {
         score += 1;
