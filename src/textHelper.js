@@ -9,8 +9,77 @@ function normalizeText(text) {
     .trim();
 }
 
+function removeRepeatedChars(text) {
+  return String(text || "").replace(/(.)\1{2,}/g, "$1$1");
+}
+
+function cleanUserText(text) {
+  return normalizeText(removeRepeatedChars(text))
+    .replace(/\baku\b/g, "saya")
+    .replace(/\bgw\b/g, "saya")
+    .replace(/\bgue\b/g, "saya")
+    .replace(/\bsy\b/g, "saya")
+    .replace(/\bmin\b/g, "")
+    .replace(/\bkak\b/g, "")
+    .replace(/\bbro\b/g, "")
+    .replace(/\bdong\b/g, "")
+    .replace(/\bya\b/g, "")
+    .replace(/\byah\b/g, "")
+    .replace(/\bnih\b/g, "")
+    .replace(/\btuh\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function expandSynonyms(text) {
-  let result = normalizeText(text);
+  let result = cleanUserText(text);
+
+  const naturalSynonyms = [
+    {
+      from: ["gimana", "bagaimana", "caranya", "cara"],
+      to: "cara prosedur langkah alur"
+    },
+    {
+      from: ["kapan", "tanggal berapa", "tgl berapa", "periode"],
+      to: "tanggal periode jadwal kapan"
+    },
+    {
+      from: ["maks", "maksimal", "maximum"],
+      to: "maksimal batas"
+    },
+    {
+      from: ["minimal", "min"],
+      to: "minimal syarat"
+    },
+    {
+      from: ["butuh", "perlu", "apa aja", "apa saja"],
+      to: "syarat dokumen berkas kebutuhan"
+    },
+    {
+      from: ["daftar", "mendaftar", "pendaftaran", "registrasi"],
+      to: "pendaftaran registrasi daftar"
+    },
+    {
+      from: ["pak", "bu", "ibu", "bapak"],
+      to: "dosen"
+    },
+    {
+      from: ["nomor induk", "nip", "nip ypt"],
+      to: "nip ypt nomor induk dosen"
+    },
+    {
+      from: ["kode dosen", "kode"],
+      to: "kode dosen baru"
+    }
+  ];
+
+  naturalSynonyms.forEach((item) => {
+    item.from.forEach((phrase) => {
+      if (result.includes(normalizeText(phrase))) {
+        result += " " + normalizeText(item.to);
+      }
+    });
+  });
 
   chatbotConfig.synonyms.forEach((item) => {
     item.from.forEach((phrase) => {
@@ -20,7 +89,17 @@ function expandSynonyms(text) {
     });
   });
 
-  return result;
+  chatbotConfig.documents.forEach((document) => {
+    document.keywords.forEach((keyword) => {
+      const cleanKeyword = normalizeText(keyword);
+
+      if (result.includes(cleanKeyword)) {
+        result += " " + document.intent + " " + document.category;
+      }
+    });
+  });
+
+  return result.replace(/\s+/g, " ").trim();
 }
 
 function detectIntent(message) {
@@ -36,9 +115,23 @@ function detectIntent(message) {
       const cleanKeyword = normalizeText(keyword);
 
       if (text.includes(cleanKeyword)) {
-        scores[document.intent] += cleanKeyword.split(" ").length;
+        scores[document.intent] += cleanKeyword.split(" ").length + 2;
       }
+
+      cleanKeyword.split(" ").forEach((word) => {
+        if (word.length > 3 && text.includes(word)) {
+          scores[document.intent] += 1;
+        }
+      });
     });
+
+    if (text.includes(normalizeText(document.category))) {
+      scores[document.intent] += 8;
+    }
+
+    if (text.includes(document.intent)) {
+      scores[document.intent] += 6;
+    }
   });
 
   const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
@@ -72,6 +165,7 @@ function getKeywords(message) {
     "tolong",
     "dong",
     "ya",
+    "yah",
     "kak",
     "bro",
     "min",
@@ -89,11 +183,18 @@ function getKeywords(message) {
     "boleh",
     "minta",
     "info",
-    "informasi"
+    "informasi",
+    "tentang",
+    "terkait",
+    "dong",
+    "nih"
   ];
 
-  return expandSynonyms(message)
+  const expanded = expandSynonyms(message);
+
+  return expanded
     .split(" ")
+    .map((word) => normalizeText(word))
     .filter((word) => word.length > 2 && !stopwords.includes(word));
 }
 
@@ -109,7 +210,7 @@ function scoreTextByKeywords(text, keywords) {
     }
 
     if (normalized.includes(key)) {
-      score += key.length > 4 ? 3 : 1;
+      score += key.length > 4 ? 4 : 2;
     }
 
     const words = key.split(" ");
@@ -124,10 +225,64 @@ function scoreTextByKeywords(text, keywords) {
   return score;
 }
 
+function getQuestionType(message) {
+  const text = expandSynonyms(message);
+
+  if (
+    text.includes("kapan") ||
+    text.includes("tanggal") ||
+    text.includes("periode") ||
+    text.includes("jadwal")
+  ) {
+    return "date";
+  }
+
+  if (
+    text.includes("cara") ||
+    text.includes("prosedur") ||
+    text.includes("langkah") ||
+    text.includes("alur")
+  ) {
+    return "procedure";
+  }
+
+  if (
+    text.includes("syarat") ||
+    text.includes("berkas") ||
+    text.includes("dokumen") ||
+    text.includes("perlu") ||
+    text.includes("butuh")
+  ) {
+    return "requirement";
+  }
+
+  if (
+    text.includes("dosen") ||
+    text.includes("nip") ||
+    text.includes("kode dosen") ||
+    text.includes("pengampu")
+  ) {
+    return "lecturer";
+  }
+
+  if (
+    text.includes("sks") ||
+    text.includes("ips") ||
+    text.includes("ipk") ||
+    text.includes("nilai")
+  ) {
+    return "academic_rule";
+  }
+
+  return "general";
+}
+
 module.exports = {
   normalizeText,
+  cleanUserText,
   expandSynonyms,
   detectIntent,
   getKeywords,
-  scoreTextByKeywords
+  scoreTextByKeywords,
+  getQuestionType
 };
