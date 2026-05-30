@@ -1,37 +1,35 @@
-const sources = {
-  "kalender-akademik2026.pdf": {
-    title: "Kalender Akademik Telkom University 2026",
-    link: "ISI_LINK_DRIVE_KALENDER_AKADEMIK"
-  },
-
-  "pedoman-akademik2026.pdf": {
-    title: "Pedoman Akademik Telkom University 2026",
-    link: "ISI_LINK_DRIVE_PEDOMAN_AKADEMIK"
-  },
-
-  "panduan-pendaftaran-sidang-TA.pdf": {
-    title: "Panduan Pendaftaran Sidang Tugas Akhir",
-    link: "ISI_LINK_DRIVE_PANDUAN_SIDANG_TA"
-  },
-
-  "data-dosen2026.xlsx": {
-    title: "Data Dosen 2026",
-    link: "ISI_LINK_DRIVE_DATA_DOSEN"
-  },
-
-  "jadwal-kuliahgenap.xlsx": {
-    title: "Jadwal Kuliah Semester Genap",
-    link: "ISI_LINK_DRIVE_JADWAL_KULIAH"
-  }
-};
+const chatbotConfig = require("./config/chatbotConfig");
 
 function getSource(fileName) {
-  return sources[fileName] || {
-    title: fileName,
-    link: ""
+  const source = chatbotConfig.documents.find(
+    (document) => document.fileName === fileName
+  );
+
+  if (!source) {
+    return {
+      title: fileName,
+      link: ""
+    };
+  }
+
+  return {
+    title: source.title,
+    link: source.link || ""
   };
 }
 
+function getAllSources() {
+  return chatbotConfig.documents.map((document) => ({
+    fileName: document.fileName,
+    title: document.title,
+    type: document.type,
+    intent: document.intent,
+    category: document.category,
+    link: document.link
+  }));
+}
+
 module.exports = {
-  getSource
+  getSource,
+  getAllSources
 };

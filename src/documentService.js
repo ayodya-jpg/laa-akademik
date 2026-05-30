@@ -7,10 +7,12 @@ const {
   scoreTextByKeywords
 } = require("./textHelper");
 const { getSource } = require("./sourceService");
+const { buildUpdateContext } = require("./updateService");
+const chatbotConfig = require("./config/chatbotConfig");
 
 let documentsCache = [];
 
-function splitIntoChunks(text, maxLength = 900) {
+function splitIntoChunks(text, maxLength = chatbotConfig.retrieval.maxChunkLength) {
   const cleanedText = String(text || "")
     .replace(/\r/g, "\n")
     .replace(/\n{3,}/g, "\n\n");
@@ -54,70 +56,41 @@ function splitIntoChunks(text, maxLength = 900) {
 async function loadDocuments() {
   documentsCache = [];
 
-  const pdfFiles = [
-    {
-      fileName: "kalender-akademik2026.pdf",
-      intent: "kalender",
-      type: "pdf"
-    },
-    {
-      fileName: "pedoman-akademik2026.pdf",
-      intent: "pedoman",
-      type: "pdf"
-    },
-    {
-      fileName: "panduan-pendaftaran-sidang-TA.pdf",
-      intent: "tugas_akhir",
-      type: "pdf"
-    }
-  ];
+  for (const document of chatbotConfig.documents) {
+    if (document.type === "pdf") {
+      const pdfText = await readPdf(document.fileName);
 
-  for (const file of pdfFiles) {
-    const pdfText = await readPdf(file.fileName);
+      if (!pdfText || pdfText.trim().length === 0) {
+        continue;
+      }
 
-    if (!pdfText || pdfText.trim().length === 0) {
-      continue;
-    }
+      const chunks = splitIntoChunks(pdfText);
 
-    const chunks = splitIntoChunks(pdfText);
-
-    chunks.forEach((chunk, index) => {
-      documentsCache.push({
-        fileName: file.fileName,
-        type: file.type,
-        intent: file.intent,
-        chunkId: index + 1,
-        content: chunk
+      chunks.forEach((chunk, index) => {
+        documentsCache.push({
+          fileName: document.fileName,
+          type: document.type,
+          intent: document.intent,
+          chunkId: index + 1,
+          content: chunk
+        });
       });
-    });
+    }
+
+    if (document.type === "excel") {
+      const rows = readExcelRows(document.fileName);
+
+      rows.forEach((row) => {
+        documentsCache.push({
+          fileName: document.fileName,
+          type: document.type,
+          intent: document.intent,
+          chunkId: row.rowNumber,
+          content: row.content
+        });
+      });
+    }
   }
-
-  const excelFiles = [
-    {
-      fileName: "data-dosen2026.xlsx",
-      intent: "dosen",
-      type: "excel"
-    },
-    {
-      fileName: "jadwal-kuliahgenap.xlsx",
-      intent: "jadwal",
-      type: "excel"
-    }
-  ];
-
-  excelFiles.forEach((file) => {
-    const rows = readExcelRows(file.fileName);
-
-    rows.forEach((row) => {
-      documentsCache.push({
-        fileName: file.fileName,
-        type: file.type,
-        intent: file.intent,
-        chunkId: row.rowNumber,
-        content: row.content
-      });
-    });
-  });
 }
 
 function searchRelevantDocuments(message) {
@@ -137,6 +110,23 @@ function searchRelevantDocuments(message) {
 
   const results = [];
 
+  const updateContext = buildUpdateContext(message);
+
+  if (updateContext) {
+    results.push({
+      fileName: "knowledge-updates.json",
+      type: "database",
+      intent: "update",
+      chunkId: 1,
+      source: {
+        title: "Database Update Chatbot",
+        link: ""
+      },
+      content: updateContext,
+      score: 999
+    });
+  }
+
   selectedDocs.forEach((doc) => {
     const normalizedContent = normalizeText(doc.content);
 
@@ -150,40 +140,16 @@ function searchRelevantDocuments(message) {
       score += 10;
     }
 
-    if (intent === "jadwal" && doc.type === "excel") {
-      score += 4;
-    }
+    const relatedDocument = chatbotConfig.documents.find(
+      (item) => item.fileName === doc.fileName
+    );
 
-    if (intent === "dosen" && doc.type === "excel") {
-      score += 4;
-    }
-
-    if (
-      intent === "tugas_akhir" &&
-      doc.fileName === "panduan-pendaftaran-sidang-TA.pdf"
-    ) {
-      score += 12;
-    }
-
-    if (
-      normalizedMessage.includes("sidang") &&
-      doc.fileName === "panduan-pendaftaran-sidang-TA.pdf"
-    ) {
-      score += 15;
-    }
-
-    if (
-      normalizedMessage.includes("daftar") &&
-      doc.fileName === "panduan-pendaftaran-sidang-TA.pdf"
-    ) {
-      score += 15;
-    }
-
-    if (
-      normalizedMessage.includes("pendaftaran") &&
-      doc.fileName === "panduan-pendaftaran-sidang-TA.pdf"
-    ) {
-      score += 15;
+    if (relatedDocument) {
+      relatedDocument.keywords.forEach((keyword) => {
+        if (normalizedMessage.includes(normalizeText(keyword))) {
+          score += 4;
+        }
+      });
     }
 
     if (score > 0) {
@@ -204,7 +170,7 @@ function searchRelevantDocuments(message) {
   return {
     intent,
     keywords,
-    results: results.slice(0, 4)
+    results: results.slice(0, chatbotConfig.retrieval.maxResults)
   };
 }
 
@@ -224,6 +190,17 @@ function getAllDocumentsInfo() {
 
     grouped[doc.fileName].chunks += 1;
   });
+
+  grouped["knowledge-updates.json"] = {
+    fileName: "knowledge-updates.json",
+    intent: "update",
+    type: "database",
+    chunks: 1,
+    source: {
+      title: "Database Update Chatbot",
+      link: ""
+    }
+  };
 
   return Object.values(grouped);
 }
