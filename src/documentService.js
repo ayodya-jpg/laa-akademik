@@ -6,7 +6,7 @@ const {
   normalizeText,
   scoreTextByKeywords
 } = require("./textHelper");
-const { getSource } = require("./sourceService");
+const { getSource, getAllRegisteredDocuments } = require("./sourceService");
 const { buildUpdateContext } = require("./updateService");
 const chatbotConfig = require("./config/chatbotConfig");
 
@@ -56,8 +56,12 @@ function splitIntoChunks(text, maxLength = chatbotConfig.retrieval.maxChunkLengt
 async function loadDocuments() {
   documentsCache = [];
 
-  for (const document of chatbotConfig.documents) {
-    if (document.type === "pdf") {
+  const allDocuments = getAllRegisteredDocuments();
+
+  for (const document of allDocuments) {
+    const fileType = String(document.type || "").toLowerCase();
+
+    if (fileType === "pdf") {
       const pdfText = await readPdf(document.fileName);
 
       if (!pdfText || pdfText.trim().length === 0) {
@@ -69,22 +73,22 @@ async function loadDocuments() {
       chunks.forEach((chunk, index) => {
         documentsCache.push({
           fileName: document.fileName,
-          type: document.type,
-          intent: document.intent,
+          type: "pdf",
+          intent: document.intent || "umum",
           chunkId: index + 1,
           content: chunk
         });
       });
     }
 
-    if (document.type === "excel") {
+    if (fileType === "excel") {
       const rows = readExcelRows(document.fileName);
 
       rows.forEach((row) => {
         documentsCache.push({
           fileName: document.fileName,
-          type: document.type,
-          intent: document.intent,
+          type: "excel",
+          intent: document.intent || "umum",
           chunkId: row.rowNumber,
           content: row.content
         });
@@ -93,10 +97,52 @@ async function loadDocuments() {
   }
 }
 
+function scoreDocumentMetadata(message, document) {
+  const normalizedMessage = normalizeText(message);
+  let score = 0;
+
+  const title = normalizeText(document.title);
+  const category = normalizeText(document.category);
+  const intent = normalizeText(document.intent);
+
+  if (title && normalizedMessage.includes(title)) {
+    score += 20;
+  }
+
+  if (category && normalizedMessage.includes(category)) {
+    score += 14;
+  }
+
+  if (intent && normalizedMessage.includes(intent)) {
+    score += 10;
+  }
+
+  if (Array.isArray(document.keywords)) {
+    document.keywords.forEach((keyword) => {
+      const cleanKeyword = normalizeText(keyword);
+
+      if (!cleanKeyword) return;
+
+      if (normalizedMessage.includes(cleanKeyword)) {
+        score += cleanKeyword.split(" ").length + 10;
+      }
+
+      cleanKeyword.split(" ").forEach((word) => {
+        if (word.length > 3 && normalizedMessage.includes(word)) {
+          score += 2;
+        }
+      });
+    });
+  }
+
+  return score;
+}
+
 function searchRelevantDocuments(message) {
   const intent = detectIntent(message);
   const keywords = getKeywords(message);
   const normalizedMessage = normalizeText(message);
+  const allDocuments = getAllRegisteredDocuments();
 
   let selectedDocs = documentsCache;
 
@@ -129,27 +175,22 @@ function searchRelevantDocuments(message) {
 
   selectedDocs.forEach((doc) => {
     const normalizedContent = normalizeText(doc.content);
+    const relatedDocument = allDocuments.find(
+      (item) => item.fileName === doc.fileName
+    );
 
     let score = scoreTextByKeywords(doc.content, keywords);
 
     if (doc.intent === intent) {
-      score += 5;
+      score += 12;
     }
 
     if (normalizedContent.includes(normalizedMessage)) {
-      score += 10;
+      score += 15;
     }
 
-    const relatedDocument = chatbotConfig.documents.find(
-      (item) => item.fileName === doc.fileName
-    );
-
     if (relatedDocument) {
-      relatedDocument.keywords.forEach((keyword) => {
-        if (normalizedMessage.includes(normalizeText(keyword))) {
-          score += 4;
-        }
-      });
+      score += scoreDocumentMetadata(message, relatedDocument);
     }
 
     if (score > 0) {

@@ -1,6 +1,10 @@
 const { searchRelevantDocuments } = require("./documentService");
 const { askGroq } = require("./aiService");
 const {
+  isCorrectionMessage,
+  normalizeText
+} = require("./textHelper");
+const {
   isUpdateCommand,
   parseUpdateCommand,
   createUpdate,
@@ -11,6 +15,8 @@ const {
 const chatbotConfig = require("./config/chatbotConfig");
 
 let pendingAdminAction = null;
+let lastUserQuestion = "";
+let lastBotIntent = "";
 
 function normalizeChatText(text) {
   return String(text || "")
@@ -72,6 +78,7 @@ Kamu juga bisa langsung tanya dengan bahasa bebas, misalnya:
 - maksimal SKS kalau IPS di atas 3 berapa?
 - bagaimana cara daftar sidang TA?
 - apa saja berkas sidang TA?
+- cara mengajukan surat pengantar KP?
 - kapan yudisium?
 - dosen Alifiansyah
 
@@ -232,6 +239,97 @@ function handleAdminPin(message) {
   };
 }
 
+function buildCorrectionQuestion(message) {
+  const text = normalizeText(message);
+
+  if (
+    text.includes("kp") ||
+    text.includes("kerja praktik") ||
+    text.includes("kerja praktek") ||
+    text.includes("magang")
+  ) {
+    return "cara mengajukan surat pengantar kerja praktik atau magang melalui TOSS";
+  }
+
+  if (
+    text.includes("sidang") ||
+    text.includes("ta") ||
+    text.includes("tugas akhir") ||
+    text.includes("skripsi")
+  ) {
+    return "cara daftar sidang tugas akhir dan syarat sidang TA";
+  }
+
+  if (lastUserQuestion) {
+    return `${lastUserQuestion} ${message}`;
+  }
+
+  return message;
+}
+
+function buildContextFromResults(results) {
+  return results
+    .map((item, index) => {
+      return `Data ${index + 1}
+Sumber: ${item.source.title}
+Jenis: ${item.type}
+Isi:
+${item.content}`;
+    })
+    .join("\n\n====================\n\n");
+}
+
+function buildUniqueSources(results) {
+  const uniqueSources = [];
+  const usedFileNames = new Set();
+
+  results.forEach((item) => {
+    if (!usedFileNames.has(item.fileName)) {
+      usedFileNames.add(item.fileName);
+      uniqueSources.push({
+        title: item.source.title,
+        link: item.source.link
+      });
+    }
+  });
+
+  return uniqueSources;
+}
+
+function appendSources(answer, uniqueSources) {
+  let finalAnswer = answer;
+
+  if (uniqueSources.length > 0) {
+    finalAnswer += "\n\n📌 Sumber dokumen:";
+
+    uniqueSources.forEach((source, index) => {
+      finalAnswer += `\n${index + 1}. ${source.title}`;
+
+      if (source.link && !source.link.includes("ISI_LINK")) {
+        finalAnswer += `\n   Download: ${source.link}`;
+      }
+    });
+  }
+
+  finalAnswer +=
+    '\n\nKamu bisa tanya lagi dengan lebih spesifik, atau ketik "menu" untuk melihat pilihan informasi lainnya.';
+
+  return finalAnswer;
+}
+
+function getNoResultAnswer(message) {
+  return `Maaf, aku belum menemukan informasi yang sesuai dari dokumen akademik yang tersedia.
+
+Coba tulis dengan kata kunci yang lebih spesifik, misalnya:
+- surat pengantar KP
+- kerja praktik atau magang
+- jadwal PRS
+- pendaftaran sidang TA
+- data dosen
+
+Kalau informasinya mendesak, kamu juga bisa menghubungi Customer Service LAA Akademik.`;
+}
+
 async function processChat(message) {
   const cleanMessage = String(message || "").trim();
 
@@ -263,61 +361,37 @@ async function processChat(message) {
     };
   }
 
-  const convertedMessage = convertMenuToQuestion(cleanMessage);
+  const correction = isCorrectionMessage(cleanMessage);
+  const convertedMessage = correction
+    ? buildCorrectionQuestion(cleanMessage)
+    : convertMenuToQuestion(cleanMessage);
+
   const search = searchRelevantDocuments(convertedMessage);
 
   if (!search.results.length) {
     return {
-      answer: chatbotConfig.fallbackMessage.trim(),
+      answer: getNoResultAnswer(cleanMessage),
       sources: []
     };
   }
 
   const topResults = search.results;
-
-  const context = topResults
-    .map((item, index) => {
-      return `Data ${index + 1}
-Sumber: ${item.source.title}
-Jenis: ${item.type}
-Isi:
-${item.content}`;
-    })
-    .join("\n\n====================\n\n");
-
+  const context = buildContextFromResults(topResults);
   const mainSource = topResults[0].source;
 
-  const aiAnswer = await askGroq(cleanMessage, context, mainSource.title);
+  const questionForAI = correction
+    ? `User mengoreksi jawaban sebelumnya. Pesan user: ${cleanMessage}. Pertanyaan yang perlu dijawab ulang: ${convertedMessage}`
+    : cleanMessage;
 
-  const uniqueSources = [];
-  const usedFileNames = new Set();
-
-  topResults.forEach((item) => {
-    if (!usedFileNames.has(item.fileName)) {
-      usedFileNames.add(item.fileName);
-      uniqueSources.push({
-        title: item.source.title,
-        link: item.source.link
-      });
-    }
+  const aiAnswer = await askGroq(questionForAI, context, mainSource.title, {
+    isCorrection: correction
   });
 
-  let finalAnswer = aiAnswer;
+  const uniqueSources = buildUniqueSources(topResults);
+  const finalAnswer = appendSources(aiAnswer, uniqueSources);
 
-  if (uniqueSources.length > 0) {
-    finalAnswer += "\n\n📌 Sumber dokumen:";
-
-    uniqueSources.forEach((source, index) => {
-      finalAnswer += `\n${index + 1}. ${source.title}`;
-
-      if (source.link && !source.link.includes("ISI_LINK")) {
-        finalAnswer += `\n   Download: ${source.link}`;
-      }
-    });
-  }
-
-  finalAnswer +=
-    '\n\nKamu bisa tanya lagi dengan lebih spesifik, atau ketik "menu" untuk melihat pilihan informasi lainnya.';
+  lastUserQuestion = convertedMessage;
+  lastBotIntent = search.intent;
 
   return {
     answer: finalAnswer,

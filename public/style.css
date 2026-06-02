@@ -1121,3 +1121,40 @@ body {
     max-width: 92%;
   }
 }
+
+/* ADMIN LINK */
+.admin-link {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  background: #172033;
+  color: #ffffff !important;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+  box-shadow: 0 10px 24px rgba(23, 32, 51, 0.16);
+  transition: 0.2s ease;
+}
+
+.admin-link:hover {
+  background: #0f172a;
+  color: #ffffff !important;
+  transform: translateY(-2px);
+}
+
+/* Supaya tombol Admin tetap muncul saat navbar disederhanakan di tablet */
+@media (max-width: 1100px) {
+  .nav-menu a.admin-link {
+    display: inline-flex !important;
+  }
+}
+
+/* Responsive untuk mobile */
+@media (max-width: 680px) {
+  .admin-link {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+}

@@ -1,4 +1,5 @@
 const chatbotConfig = require("./config/chatbotConfig");
+const { getAllRegisteredDocuments } = require("./sourceService");
 
 function normalizeText(text) {
   return String(text || "")
@@ -31,13 +32,11 @@ function cleanUserText(text) {
     .trim();
 }
 
-function expandSynonyms(text) {
-  let result = cleanUserText(text);
-
-  const naturalSynonyms = [
+function getNaturalSynonyms() {
+  return [
     {
       from: ["gimana", "bagaimana", "caranya", "cara"],
-      to: "cara prosedur langkah alur"
+      to: "cara prosedur langkah alur panduan"
     },
     {
       from: ["kapan", "tanggal berapa", "tgl berapa", "periode"],
@@ -45,19 +44,19 @@ function expandSynonyms(text) {
     },
     {
       from: ["maks", "maksimal", "maximum"],
-      to: "maksimal batas"
+      to: "maksimal batas ketentuan"
     },
     {
       from: ["minimal", "min"],
-      to: "minimal syarat"
+      to: "minimal syarat ketentuan"
     },
     {
       from: ["butuh", "perlu", "apa aja", "apa saja"],
-      to: "syarat dokumen berkas kebutuhan"
+      to: "syarat dokumen berkas kebutuhan ketentuan"
     },
     {
       from: ["daftar", "mendaftar", "pendaftaran", "registrasi"],
-      to: "pendaftaran registrasi daftar"
+      to: "pendaftaran registrasi daftar pengajuan"
     },
     {
       from: ["pak", "bu", "ibu", "bapak"],
@@ -70,10 +69,26 @@ function expandSynonyms(text) {
     {
       from: ["kode dosen", "kode"],
       to: "kode dosen baru"
+    },
+    {
+      from: ["kp", "kerja praktik", "kerja praktek", "magang", "internship"],
+      to: "kp kerja praktik kerja praktek magang surat pengantar toss surat keterangan"
+    },
+    {
+      from: ["toss"],
+      to: "toss layanan akademik surat keterangan pengajuan"
+    },
+    {
+      from: ["ta", "tugas akhir", "skripsi"],
+      to: "tugas akhir skripsi sidang pembimbing penguji"
     }
   ];
+}
 
-  naturalSynonyms.forEach((item) => {
+function expandSynonyms(text) {
+  let result = cleanUserText(text);
+
+  getNaturalSynonyms().forEach((item) => {
     item.from.forEach((phrase) => {
       if (result.includes(normalizeText(phrase))) {
         result += " " + normalizeText(item.to);
@@ -81,20 +96,38 @@ function expandSynonyms(text) {
     });
   });
 
-  chatbotConfig.synonyms.forEach((item) => {
-    item.from.forEach((phrase) => {
-      if (result.includes(normalizeText(phrase))) {
-        result += " " + normalizeText(item.to);
-      }
-    });
-  });
+  if (Array.isArray(chatbotConfig.synonyms)) {
+    chatbotConfig.synonyms.forEach((item) => {
+      if (!Array.isArray(item.from)) return;
 
-  chatbotConfig.documents.forEach((document) => {
+      item.from.forEach((phrase) => {
+        if (result.includes(normalizeText(phrase))) {
+          result += " " + normalizeText(item.to);
+        }
+      });
+    });
+  }
+
+  getAllRegisteredDocuments().forEach((document) => {
+    const title = normalizeText(document.title);
+    const category = normalizeText(document.category);
+    const intent = normalizeText(document.intent);
+
+    if (title && result.includes(title)) {
+      result += ` ${intent} ${category}`;
+    }
+
+    if (category && result.includes(category)) {
+      result += ` ${intent} ${category}`;
+    }
+
+    if (!Array.isArray(document.keywords)) return;
+
     document.keywords.forEach((keyword) => {
       const cleanKeyword = normalizeText(keyword);
 
-      if (result.includes(cleanKeyword)) {
-        result += " " + document.intent + " " + document.category;
+      if (cleanKeyword && result.includes(cleanKeyword)) {
+        result += ` ${intent} ${category} ${cleanKeyword}`;
       }
     });
   });
@@ -102,36 +135,60 @@ function expandSynonyms(text) {
   return result.replace(/\s+/g, " ").trim();
 }
 
-function detectIntent(message) {
-  const text = expandSynonyms(message);
-  const scores = {};
+function scoreDocumentIntent(text, document) {
+  let score = 0;
 
-  chatbotConfig.documents.forEach((document) => {
-    if (!scores[document.intent]) {
-      scores[document.intent] = 0;
-    }
+  const title = normalizeText(document.title);
+  const category = normalizeText(document.category);
+  const intent = normalizeText(document.intent);
 
+  if (title && text.includes(title)) {
+    score += 15;
+  }
+
+  if (category && text.includes(category)) {
+    score += 10;
+  }
+
+  if (intent && text.includes(intent)) {
+    score += 8;
+  }
+
+  if (Array.isArray(document.keywords)) {
     document.keywords.forEach((keyword) => {
       const cleanKeyword = normalizeText(keyword);
 
+      if (!cleanKeyword) return;
+
       if (text.includes(cleanKeyword)) {
-        scores[document.intent] += cleanKeyword.split(" ").length + 2;
+        score += cleanKeyword.split(" ").length + 6;
       }
 
       cleanKeyword.split(" ").forEach((word) => {
         if (word.length > 3 && text.includes(word)) {
-          scores[document.intent] += 1;
+          score += 1;
         }
       });
     });
+  }
 
-    if (text.includes(normalizeText(document.category))) {
-      scores[document.intent] += 8;
+  return score;
+}
+
+function detectIntent(message) {
+  const text = expandSynonyms(message);
+  const scores = {};
+
+  getAllRegisteredDocuments().forEach((document) => {
+    if (!document.intent) return;
+
+    const intent = document.intent;
+
+    if (!scores[intent]) {
+      scores[intent] = 0;
     }
 
-    if (text.includes(document.intent)) {
-      scores[document.intent] += 6;
-    }
+    scores[intent] += scoreDocumentIntent(text, document);
   });
 
   const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
@@ -186,7 +243,6 @@ function getKeywords(message) {
     "informasi",
     "tentang",
     "terkait",
-    "dong",
     "nih"
   ];
 
@@ -205,17 +261,13 @@ function scoreTextByKeywords(text, keywords) {
   keywords.forEach((keyword) => {
     const key = normalizeText(keyword);
 
-    if (!key) {
-      return;
-    }
+    if (!key) return;
 
     if (normalized.includes(key)) {
       score += key.length > 4 ? 4 : 2;
     }
 
-    const words = key.split(" ");
-
-    words.forEach((word) => {
+    key.split(" ").forEach((word) => {
       if (word.length > 2 && normalized.includes(word)) {
         score += 1;
       }
@@ -241,7 +293,8 @@ function getQuestionType(message) {
     text.includes("cara") ||
     text.includes("prosedur") ||
     text.includes("langkah") ||
-    text.includes("alur")
+    text.includes("alur") ||
+    text.includes("panduan")
   ) {
     return "procedure";
   }
@@ -277,6 +330,25 @@ function getQuestionType(message) {
   return "general";
 }
 
+function isCorrectionMessage(message) {
+  const text = normalizeText(message);
+
+  return (
+    text.includes("bukan") ||
+    text.includes("salah") ||
+    text.includes("keliru") ||
+    text.includes("kok malah") ||
+    text.includes("itu kan") ||
+    text.includes("maksud saya") ||
+    text.includes("maksudnya") ||
+    text.includes("yang saya tanya") ||
+    text.includes("yang aku tanya") ||
+    text.includes("tidak sesuai") ||
+    text.includes("ga sesuai") ||
+    text.includes("nggak sesuai")
+  );
+}
+
 module.exports = {
   normalizeText,
   cleanUserText,
@@ -284,5 +356,6 @@ module.exports = {
   detectIntent,
   getKeywords,
   scoreTextByKeywords,
-  getQuestionType
+  getQuestionType,
+  isCorrectionMessage
 };

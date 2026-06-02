@@ -14,7 +14,7 @@ function buildFallbackAnswer(question, context, sourceTitle) {
 
   return `Aku menemukan informasi yang kemungkinan relevan dari ${sourceTitle}, tetapi saat ini layanan AI belum bisa merangkum jawaban secara penuh.
 
-Berikut data yang ditemukan:
+Berikut informasi yang ditemukan:
 
 ${shortContext}
 
@@ -41,36 +41,35 @@ function getAnswerStyleInstruction(question) {
   const styles = {
     date: `
 Jenis pertanyaan: tanggal atau periode.
-Jawablah langsung ke inti tanggal/periode yang diminta.
-Format jawaban:
-- Mulai dengan kalimat singkat yang natural.
+Cara menjawab:
+- Jawab langsung ke tanggal/periode yang diminta.
 - Sebutkan nama kegiatan dan tanggal/periode.
-- Jika ada catatan penting, tulis setelahnya.
+- Jika ada catatan penting, tulis setelahnya secara singkat.
 `,
 
     procedure: `
-Jenis pertanyaan: prosedur atau cara melakukan sesuatu.
-Jawablah dengan format langkah-langkah yang rapi.
-Format jawaban:
-- Awali dengan kalimat natural.
-- Gunakan daftar bernomor jika ada urutan proses.
-- Jangan terlalu panjang.
+Jenis pertanyaan: prosedur atau cara.
+Cara menjawab:
+- Awali dengan kalimat singkat yang natural.
+- Jelaskan dalam langkah-langkah bernomor.
+- Jangan membuat jawaban terlalu panjang.
+- Fokus pada alur yang benar dari dokumen.
 `,
 
     requirement: `
 Jenis pertanyaan: syarat, dokumen, atau berkas.
-Jawablah dengan daftar poin.
-Format jawaban:
+Cara menjawab:
 - Awali dengan kalimat singkat.
-- Gunakan bullet list untuk syarat atau dokumen.
+- Gunakan bullet list untuk syarat/dokumen.
 - Jika ada catatan, tulis di akhir.
 `,
 
     lecturer: `
 Jenis pertanyaan: data dosen.
-Jawablah dengan format tetap berikut:
+Cara menjawab:
+Gunakan format berikut jika datanya tersedia:
 
-Informasi tentang [Nama Dosen] adalah sebagai berikut:
+Informasi dosen yang tersedia adalah:
 
 - Nama: ...
 - Status Aktif: ...
@@ -82,31 +81,29 @@ Informasi tentang [Nama Dosen] adalah sebagai berikut:
 Aturan:
 - Jangan membuat paragraf panjang untuk data dosen.
 - Jika ada data dari Database Update Chatbot, gunakan sebagai data terbaru.
-- Jika update hanya mengubah satu field, gabungkan dengan field lain dari Data Dosen 2026.
-- Jangan menyebut tanggal update kecuali user bertanya riwayat update.
 - Tampilkan hanya field yang tersedia.
 `,
 
     academic_rule: `
-Jenis pertanyaan: aturan akademik seperti SKS, IPS, IPK, nilai, atau masa studi.
-Jawablah dengan bahasa sederhana.
-Format jawaban:
-- Jelaskan aturan utamanya.
+Jenis pertanyaan: aturan akademik.
+Cara menjawab:
+- Jelaskan aturan utamanya dengan bahasa sederhana.
 - Gunakan poin jika ada beberapa ketentuan.
-- Hindari bahasa terlalu formal.
+- Hindari bahasa yang terlalu formal.
 `,
 
     general: `
 Jenis pertanyaan: umum.
-Jawablah secara natural, ramah, dan tetap berdasarkan data yang tersedia.
-Gunakan paragraf singkat atau poin bila diperlukan.
+Cara menjawab:
+- Jawab secara natural, ramah, dan tetap berdasarkan data.
+- Gunakan paragraf singkat atau poin jika diperlukan.
 `
   };
 
   return styles[questionType] || styles.general;
 }
 
-async function askGroq(question, context, sourceTitle) {
+async function askGroq(question, context, sourceTitle, options = {}) {
   if (
     !process.env.GROQ_API_KEY ||
     process.env.GROQ_API_KEY === "isi_api_key_groq_kamu"
@@ -122,28 +119,41 @@ async function askGroq(question, context, sourceTitle) {
   const rulesText = chatbotConfig.rules.map((rule) => `- ${rule}`).join("\n");
   const answerStyle = getAnswerStyleInstruction(question);
 
+  const correctionInstruction = options.isCorrection
+    ? `
+Catatan percakapan:
+User sedang mengoreksi jawaban sebelumnya. Akui dengan sopan bahwa jawaban sebelumnya mungkin belum sesuai, lalu jawab ulang berdasarkan konteks dokumen yang sekarang tersedia.
+`
+    : "";
+
   const prompt = `
 ${chatbotConfig.persona}
 
-Kamu sedang menjawab sebagai chatbot layanan akademik kampus.
-Gunakan gaya bahasa yang ramah, natural, dan membantu mahasiswa.
-Jawaban boleh terdengar seperti petugas akademik yang sopan, tetapi jangan terlalu kaku.
+Kamu menjawab sebagai chatbot layanan akademik kampus.
+
+Gaya bahasa:
+- Gunakan bahasa Indonesia yang ramah, natural, dan mudah dipahami mahasiswa.
+- Boleh terdengar seperti petugas akademik yang sopan.
+- Jangan terlalu kaku.
+- Jangan terlalu panjang.
+- Jangan mengulang pertanyaan user secara berlebihan.
 
 Aturan utama:
 ${rulesText}
 
-Aturan penting:
-- Jawab hanya berdasarkan konteks data yang diberikan.
-- Jangan mengarang data di luar konteks.
-- Jangan menyebut istilah teknis seperti chunk, retrieval, database mentah, prompt, atau konteks internal.
-- Jika data tidak lengkap, katakan dengan halus bahwa informasi pada data belum lengkap.
-- Jangan terlalu panjang. Jawab secukupnya sesuai pertanyaan user.
-- Jika ada data dari "Database Update Chatbot", perlakukan sebagai informasi terbaru.
-- Jika data update bertentangan dengan PDF atau Excel, prioritaskan Database Update Chatbot.
-- Jangan membuka jawaban dengan kalimat seperti "Berdasarkan konteks yang diberikan".
-- Jangan menyebut "saya menemukan pada dataset" kecuali memang perlu.
-- Gunakan kata "kamu" agar terasa natural.
-- Tetap sopan dan profesional.
+Aturan tambahan:
+- Jawab hanya berdasarkan data yang diberikan.
+- Jangan mengarang informasi di luar data.
+- Jika data tidak memuat jawaban yang sesuai, sampaikan bahwa informasi tersebut belum tersedia di dokumen chatbot.
+- Jangan menyebut istilah teknis seperti chunk, retrieval, scoring, prompt, atau konteks internal.
+- Jangan membuka jawaban dengan kalimat “Berdasarkan konteks yang diberikan”.
+- Jangan menyebut “dataset” kepada user.
+- Jika user bertanya prosedur, gunakan langkah-langkah.
+- Jika user bertanya syarat/dokumen, gunakan poin.
+- Jika data dari Database Update Chatbot bertentangan dengan dokumen lain, prioritaskan Database Update Chatbot.
+- Gunakan kata “kamu” agar lebih natural, tetapi tetap sopan.
+
+${correctionInstruction}
 
 ${answerStyle}
 
@@ -171,7 +181,7 @@ ${sourceTitle}
           content: prompt
         }
       ],
-      temperature: 0.25,
+      temperature: 0.2,
       max_tokens: chatbotConfig.groq.maxTokens
     });
 

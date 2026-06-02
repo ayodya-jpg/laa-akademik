@@ -2,6 +2,21 @@ const fs = require("fs");
 const path = require("path");
 const XLSX = require("xlsx");
 
+function resolveDataFilePath(fileName) {
+  const mainPath = path.join(__dirname, "../data", fileName);
+  const uploadPath = path.join(__dirname, "../data/uploads", fileName);
+
+  if (fs.existsSync(mainPath)) {
+    return mainPath;
+  }
+
+  if (fs.existsSync(uploadPath)) {
+    return uploadPath;
+  }
+
+  return mainPath;
+}
+
 function cleanValue(value) {
   return String(value ?? "")
     .replace(/\s+/g, " ")
@@ -24,7 +39,7 @@ function rowToNaturalText(row) {
 }
 
 function readExcelRows(fileName) {
-  const filePath = path.join(__dirname, "../data", fileName);
+  const filePath = resolveDataFilePath(fileName);
 
   if (!fs.existsSync(filePath)) {
     console.warn(`File Excel tidak ditemukan: ${fileName}`);
