@@ -82,12 +82,12 @@ async function uploadFileToDrive({ buffer, originalName, mimeType }) {
   };
 }
 
-async function findMetadataFile() {
+async function findJsonFile(fileName) {
   const drive = getDriveClient();
   const folderId = getDriveFolderId();
 
   const response = await drive.files.list({
-    q: `'${folderId}' in parents and name='${METADATA_FILE_NAME}' and trashed=false`,
+    q: `'${folderId}' in parents and name='${fileName}' and trashed=false`,
     fields: "files(id, name)",
     spaces: "drive",
     pageSize: 1
@@ -98,19 +98,21 @@ async function findMetadataFile() {
     : null;
 }
 
-async function createMetadataFile() {
+async function createJsonFile(fileName, defaultData = []) {
   const drive = getDriveClient();
   const folderId = getDriveFolderId();
 
   const response = await drive.files.create({
     requestBody: {
-      name: METADATA_FILE_NAME,
+      name: fileName,
       parents: [folderId],
       mimeType: "application/json"
     },
     media: {
       mimeType: "application/json",
-      body: bufferToStream(Buffer.from("[]", "utf-8"))
+      body: bufferToStream(
+        Buffer.from(JSON.stringify(defaultData, null, 2), "utf-8")
+      )
     },
     fields: "id, name"
   });
@@ -118,24 +120,24 @@ async function createMetadataFile() {
   return response.data;
 }
 
-async function getMetadataFile() {
-  const existingFile = await findMetadataFile();
+async function getJsonFile(fileName, defaultData = []) {
+  const existingFile = await findJsonFile(fileName);
 
   if (existingFile) {
     return existingFile;
   }
 
-  return createMetadataFile();
+  return createJsonFile(fileName, defaultData);
 }
 
-async function readDriveDocuments() {
+async function readJsonFromDrive(fileName, defaultData = []) {
   try {
     const drive = getDriveClient();
-    const metadataFile = await getMetadataFile();
+    const jsonFile = await getJsonFile(fileName, defaultData);
 
     const response = await drive.files.get(
       {
-        fileId: metadataFile.id,
+        fileId: jsonFile.id,
         alt: "media"
       },
       {
@@ -143,35 +145,43 @@ async function readDriveDocuments() {
       }
     );
 
-    const rawData = response.data || "[]";
+    const rawData = response.data || JSON.stringify(defaultData);
     const parsedData = JSON.parse(rawData);
-
-    if (!Array.isArray(parsedData)) {
-      return [];
-    }
 
     return parsedData;
   } catch (error) {
-    console.error("Read Drive Metadata Error:", error.message);
-    return [];
+    console.error(`Read Drive JSON Error (${fileName}):`, error.message);
+    return defaultData;
   }
 }
 
-async function saveDriveDocuments(documents) {
+async function saveJsonToDrive(fileName, data) {
   const drive = getDriveClient();
-  const metadataFile = await getMetadataFile();
+  const jsonFile = await getJsonFile(fileName, []);
 
   await drive.files.update({
-    fileId: metadataFile.id,
+    fileId: jsonFile.id,
     media: {
       mimeType: "application/json",
-      body: bufferToStream(
-        Buffer.from(JSON.stringify(documents, null, 2), "utf-8")
-      )
+      body: bufferToStream(Buffer.from(JSON.stringify(data, null, 2), "utf-8"))
     }
   });
 
-  return documents;
+  return data;
+}
+
+async function readDriveDocuments() {
+  const data = await readJsonFromDrive(METADATA_FILE_NAME, []);
+
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data;
+}
+
+async function saveDriveDocuments(documents) {
+  return saveJsonToDrive(METADATA_FILE_NAME, documents);
 }
 
 function normalizeKeywords(keywords) {
@@ -224,5 +234,7 @@ module.exports = {
   uploadFileToDrive,
   readDriveDocuments,
   addDriveDocumentMetadata,
-  deleteDriveDocumentMetadata
+  deleteDriveDocumentMetadata,
+  readJsonFromDrive,
+  saveJsonToDrive
 };

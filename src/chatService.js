@@ -1,10 +1,6 @@
 const { searchRelevantDocuments } = require("./documentService");
 const { askGroq } = require("./aiService");
 const {
-  isCorrectionMessage,
-  normalizeText
-} = require("./textHelper");
-const {
   isUpdateCommand,
   parseUpdateCommand,
   createUpdate,
@@ -15,8 +11,6 @@ const {
 const chatbotConfig = require("./config/chatbotConfig");
 
 let pendingAdminAction = null;
-let lastUserQuestion = "";
-let lastBotIntent = "";
 
 function normalizeChatText(text) {
   return String(text || "")
@@ -78,7 +72,6 @@ Kamu juga bisa langsung tanya dengan bahasa bebas, misalnya:
 - maksimal SKS kalau IPS di atas 3 berapa?
 - bagaimana cara daftar sidang TA?
 - apa saja berkas sidang TA?
-- cara mengajukan surat pengantar KP?
 - kapan yudisium?
 - dosen Alifiansyah
 
@@ -181,7 +174,7 @@ Catatan: PIN berlaku selama 2 menit. Kalau lewat dari itu, reset akan otomatis d
   };
 }
 
-function handleAdminPin(message) {
+async function handleAdminPin(message) {
   if (!pendingAdminAction) {
     return null;
   }
@@ -204,7 +197,7 @@ function handleAdminPin(message) {
 
     return {
       answer:
-        "PIN admin belum diatur di file .env.\n\nTambahkan ADMIN_PIN=123456 di file .env, lalu restart server.",
+        "PIN admin belum diatur di environment variable.\n\nTambahkan ADMIN_PIN di file .env untuk lokal atau di Environment Variables untuk Vercel.",
       sources: []
     };
   }
@@ -219,115 +212,36 @@ function handleAdminPin(message) {
     };
   }
 
-  let result;
+  try {
+    let result;
 
-  if (pendingAdminAction.type === "update") {
-    result = createUpdate(pendingAdminAction.originalMessage);
-  } else if (pendingAdminAction.type === "reset") {
-    result = resetUpdates(pendingAdminAction.originalMessage);
-  } else {
-    result = {
-      message: "Perintah admin tidak dikenali."
+    if (pendingAdminAction.type === "update") {
+      result = await createUpdate(pendingAdminAction.originalMessage);
+    } else if (pendingAdminAction.type === "reset") {
+      result = await resetUpdates(pendingAdminAction.originalMessage);
+    } else {
+      result = {
+        message: "Perintah admin tidak dikenali."
+      };
+    }
+
+    clearPendingAction();
+
+    return {
+      answer: result.message,
+      sources: []
+    };
+  } catch (error) {
+    console.error("Admin PIN Action Error:", error);
+
+    clearPendingAction();
+
+    return {
+      answer:
+        "PIN admin sudah benar, tetapi terjadi kendala saat menyimpan update.\n\nKemungkinan penyebabnya adalah koneksi ke Google Drive API gagal, environment variable Google Drive belum lengkap, atau folder Drive belum dibagikan ke service account.",
+      sources: []
     };
   }
-
-  clearPendingAction();
-
-  return {
-    answer: result.message,
-    sources: []
-  };
-}
-
-function buildCorrectionQuestion(message) {
-  const text = normalizeText(message);
-
-  if (
-    text.includes("kp") ||
-    text.includes("kerja praktik") ||
-    text.includes("kerja praktek") ||
-    text.includes("magang")
-  ) {
-    return "cara mengajukan surat pengantar kerja praktik atau magang melalui TOSS";
-  }
-
-  if (
-    text.includes("sidang") ||
-    text.includes("ta") ||
-    text.includes("tugas akhir") ||
-    text.includes("skripsi")
-  ) {
-    return "cara daftar sidang tugas akhir dan syarat sidang TA";
-  }
-
-  if (lastUserQuestion) {
-    return `${lastUserQuestion} ${message}`;
-  }
-
-  return message;
-}
-
-function buildContextFromResults(results) {
-  return results
-    .map((item, index) => {
-      return `Data ${index + 1}
-Sumber: ${item.source.title}
-Jenis: ${item.type}
-Isi:
-${item.content}`;
-    })
-    .join("\n\n====================\n\n");
-}
-
-function buildUniqueSources(results) {
-  const uniqueSources = [];
-  const usedFileNames = new Set();
-
-  results.forEach((item) => {
-    if (!usedFileNames.has(item.fileName)) {
-      usedFileNames.add(item.fileName);
-      uniqueSources.push({
-        title: item.source.title,
-        link: item.source.link
-      });
-    }
-  });
-
-  return uniqueSources;
-}
-
-function appendSources(answer, uniqueSources) {
-  let finalAnswer = answer;
-
-  if (uniqueSources.length > 0) {
-    finalAnswer += "\n\n📌 Sumber dokumen:";
-
-    uniqueSources.forEach((source, index) => {
-      finalAnswer += `\n${index + 1}. ${source.title}`;
-
-      if (source.link && !source.link.includes("ISI_LINK")) {
-        finalAnswer += `\n   Download: ${source.link}`;
-      }
-    });
-  }
-
-  finalAnswer +=
-    '\n\nKamu bisa tanya lagi dengan lebih spesifik, atau ketik "menu" untuk melihat pilihan informasi lainnya.';
-
-  return finalAnswer;
-}
-
-function getNoResultAnswer(message) {
-  return `Maaf, aku belum menemukan informasi yang sesuai dari dokumen akademik yang tersedia.
-
-Coba tulis dengan kata kunci yang lebih spesifik, misalnya:
-- surat pengantar KP
-- kerja praktik atau magang
-- jadwal PRS
-- pendaftaran sidang TA
-- data dosen
-
-Kalau informasinya mendesak, kamu juga bisa menghubungi Customer Service LAA Akademik.`;
 }
 
 async function processChat(message) {
@@ -340,7 +254,7 @@ async function processChat(message) {
     };
   }
 
-  const pendingPinResponse = handleAdminPin(cleanMessage);
+  const pendingPinResponse = await handleAdminPin(cleanMessage);
 
   if (pendingPinResponse) {
     return pendingPinResponse;
@@ -361,37 +275,61 @@ async function processChat(message) {
     };
   }
 
-  const correction = isCorrectionMessage(cleanMessage);
-  const convertedMessage = correction
-    ? buildCorrectionQuestion(cleanMessage)
-    : convertMenuToQuestion(cleanMessage);
-
-  const search = searchRelevantDocuments(convertedMessage);
+  const convertedMessage = convertMenuToQuestion(cleanMessage);
+  const search = await searchRelevantDocuments(convertedMessage);
 
   if (!search.results.length) {
     return {
-      answer: getNoResultAnswer(cleanMessage),
+      answer: chatbotConfig.fallbackMessage.trim(),
       sources: []
     };
   }
 
   const topResults = search.results;
-  const context = buildContextFromResults(topResults);
+
+  const context = topResults
+    .map((item, index) => {
+      return `Data ${index + 1}
+Sumber: ${item.source.title}
+Jenis: ${item.type}
+Isi:
+${item.content}`;
+    })
+    .join("\n\n====================\n\n");
+
   const mainSource = topResults[0].source;
 
-  const questionForAI = correction
-    ? `User mengoreksi jawaban sebelumnya. Pesan user: ${cleanMessage}. Pertanyaan yang perlu dijawab ulang: ${convertedMessage}`
-    : cleanMessage;
+  const aiAnswer = await askGroq(cleanMessage, context, mainSource.title);
 
-  const aiAnswer = await askGroq(questionForAI, context, mainSource.title, {
-    isCorrection: correction
+  const uniqueSources = [];
+  const usedFileNames = new Set();
+
+  topResults.forEach((item) => {
+    if (!usedFileNames.has(item.fileName)) {
+      usedFileNames.add(item.fileName);
+      uniqueSources.push({
+        title: item.source.title,
+        link: item.source.link
+      });
+    }
   });
 
-  const uniqueSources = buildUniqueSources(topResults);
-  const finalAnswer = appendSources(aiAnswer, uniqueSources);
+  let finalAnswer = aiAnswer;
 
-  lastUserQuestion = convertedMessage;
-  lastBotIntent = search.intent;
+  if (uniqueSources.length > 0) {
+    finalAnswer += "\n\n📌 Sumber dokumen:";
+
+    uniqueSources.forEach((source, index) => {
+      finalAnswer += `\n${index + 1}. ${source.title}`;
+
+      if (source.link && !source.link.includes("ISI_LINK")) {
+        finalAnswer += `\n   Download: ${source.link}`;
+      }
+    });
+  }
+
+  finalAnswer +=
+    '\n\nKamu bisa tanya lagi dengan lebih spesifik, atau ketik "menu" untuk melihat pilihan informasi lainnya.';
 
   return {
     answer: finalAnswer,

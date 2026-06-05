@@ -1,15 +1,32 @@
 const fs = require("fs");
 const path = require("path");
+const { readJsonFromDrive, saveJsonToDrive } = require("./googleDriveService");
 
 const updateFilePath = path.join(__dirname, "../data/knowledge-updates.json");
+const DRIVE_UPDATE_FILE_NAME = "knowledge-updates.json";
+
+function isVercelEnvironment() {
+  return Boolean(process.env.VERCEL) || process.env.NODE_ENV === "production";
+}
 
 function ensureUpdateFileExists() {
+  const dataDir = path.dirname(updateFilePath);
+
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+
   if (!fs.existsSync(updateFilePath)) {
     fs.writeFileSync(updateFilePath, "[]", "utf-8");
   }
 }
 
-function readUpdates() {
+async function readUpdates() {
+  if (isVercelEnvironment()) {
+    const updates = await readJsonFromDrive(DRIVE_UPDATE_FILE_NAME, []);
+    return Array.isArray(updates) ? updates : [];
+  }
+
   ensureUpdateFileExists();
 
   try {
@@ -26,14 +43,15 @@ function readUpdates() {
   }
 }
 
-function saveUpdates(updates) {
+async function saveUpdates(updates) {
+  if (isVercelEnvironment()) {
+    await saveJsonToDrive(DRIVE_UPDATE_FILE_NAME, updates);
+    return;
+  }
+
   ensureUpdateFileExists();
 
-  fs.writeFileSync(
-    updateFilePath,
-    JSON.stringify(updates, null, 2),
-    "utf-8"
-  );
+  fs.writeFileSync(updateFilePath, JSON.stringify(updates, null, 2), "utf-8");
 }
 
 function normalizeText(text) {
@@ -89,18 +107,18 @@ function parseUpdateCommand(message) {
   return null;
 }
 
-function createUpdate(message) {
+async function createUpdate(message) {
   const parsed = parseUpdateCommand(message);
 
   if (!parsed) {
     return {
       success: false,
       message:
-        "Format update belum sesuai.\n\nContoh:\nupdate pendaftaran TA jadi 17 Januari 2026\nubah NIP dosen Budi menjadi 198706122019031002"
+        "Format update belum sesuai.\n\nContoh:\nupdate pendaftaran TA jadi 17 Januari 2026\nubah NIP dosen Alifiansyah menjadi 22960063"
     };
   }
 
-  const updates = readUpdates();
+  const updates = await readUpdates();
 
   const newUpdate = {
     id: `update-${Date.now()}`,
@@ -111,7 +129,7 @@ function createUpdate(message) {
   };
 
   updates.push(newUpdate);
-  saveUpdates(updates);
+  await saveUpdates(updates);
 
   return {
     success: true,
@@ -179,7 +197,7 @@ function parseResetCommand(message) {
   return null;
 }
 
-function resetUpdates(message) {
+async function resetUpdates(message) {
   const parsed = parseResetCommand(message);
 
   if (!parsed) {
@@ -190,10 +208,10 @@ function resetUpdates(message) {
     };
   }
 
-  const updates = readUpdates();
+  const updates = await readUpdates();
 
   if (parsed.type === "all") {
-    saveUpdates([]);
+    await saveUpdates([]);
 
     return {
       success: true,
@@ -230,7 +248,7 @@ function resetUpdates(message) {
     };
   }
 
-  saveUpdates(remainingUpdates);
+  await saveUpdates(remainingUpdates);
 
   return {
     success: true,
@@ -245,10 +263,10 @@ Jumlah data yang dihapus: ${deletedCount}`
    SEARCH UPDATE CONTEXT
 ========================= */
 
-function searchUpdates(message) {
+async function searchUpdates(message) {
   const text = normalizeText(message);
   const words = text.split(" ").filter((word) => word.length > 2);
-  const updates = readUpdates();
+  const updates = await readUpdates();
 
   const results = updates
     .map((item) => {
@@ -297,8 +315,8 @@ function searchUpdates(message) {
   return results;
 }
 
-function buildUpdateContext(message) {
-  const results = searchUpdates(message);
+async function buildUpdateContext(message) {
+  const results = await searchUpdates(message);
 
   if (!results.length) {
     return "";
