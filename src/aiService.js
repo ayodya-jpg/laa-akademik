@@ -7,18 +7,136 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
 });
 
-function buildFallbackAnswer(question, context, sourceTitle) {
-  const shortContext = String(context || "")
+function cleanText(text) {
+  return String(text || "")
     .replace(/\n{3,}/g, "\n\n")
-    .slice(0, 1800);
+    .trim();
+}
 
-  return `Aku menemukan informasi yang kemungkinan relevan dari ${sourceTitle}, tetapi saat ini layanan AI belum bisa merangkum jawaban secara penuh.
+function extractLecturerData(context) {
+  const text = String(context || "");
 
-Berikut informasi yang ditemukan:
+  const nameMatch = text.match(/NAMA:\s*([^;]+)/i);
+  const statusMatch = text.match(/Status Aktif:\s*([^;]+)/i);
+  const prodiMatch = text.match(/PRODI:\s*([^;]+)/i);
+  const nipMatch = text.match(/NIP YPT:\s*([^;]+)/i);
+  const gelarMatch = text.match(/Nama Gelar:\s*([^;]+)/i);
+  const kodeMatch = text.match(/Kode Dosen Baru:\s*([^;\n]+)/i);
+
+  if (!nameMatch && !nipMatch && !gelarMatch) {
+    return null;
+  }
+
+  return {
+    nama: nameMatch ? nameMatch[1].trim() : "",
+    status: statusMatch ? statusMatch[1].trim() : "",
+    prodi: prodiMatch ? prodiMatch[1].trim() : "",
+    nip: nipMatch ? nipMatch[1].trim() : "",
+    gelar: gelarMatch ? gelarMatch[1].trim() : "",
+    kode: kodeMatch ? kodeMatch[1].trim() : ""
+  };
+}
+
+function buildLecturerFallbackAnswer(context) {
+  const lecturer = extractLecturerData(context);
+
+  if (!lecturer) {
+    return null;
+  }
+
+  let answer = "Informasi dosen yang tersedia adalah:\n\n";
+
+  if (lecturer.nama) {
+    answer += `- Nama: ${lecturer.nama}\n`;
+  }
+
+  if (lecturer.status) {
+    answer += `- Status Aktif: ${lecturer.status}\n`;
+  }
+
+  if (lecturer.prodi) {
+    answer += `- Prodi: ${lecturer.prodi}\n`;
+  }
+
+  if (lecturer.nip) {
+    answer += `- NIP YPT: ${lecturer.nip}\n`;
+  }
+
+  if (lecturer.gelar) {
+    answer += `- Nama Gelar: ${lecturer.gelar}\n`;
+  }
+
+  if (lecturer.kode) {
+    answer += `- Kode Dosen Baru: ${lecturer.kode}\n`;
+  }
+
+  return answer.trim();
+}
+
+function buildProcedureFallbackAnswer(context, sourceTitle) {
+  const cleanContext = cleanText(context);
+
+  const lines = cleanContext
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !line.startsWith("Data "))
+    .filter((line) => !line.startsWith("Sumber:"))
+    .filter((line) => !line.startsWith("Jenis:"))
+    .filter((line) => !line.startsWith("Isi:"))
+    .filter((line) => !line.includes("===================="))
+    .slice(0, 12);
+
+  if (!lines.length) {
+    return null;
+  }
+
+  let answer = `Informasi yang tersedia dari ${sourceTitle} adalah:\n\n`;
+
+  lines.forEach((line, index) => {
+    answer += `${index + 1}. ${line}\n`;
+  });
+
+  return answer.trim();
+}
+
+function buildFallbackAnswer(question, context, sourceTitle) {
+  const questionType = getQuestionType(question);
+  const normalizedQuestion = String(question || "").toLowerCase();
+
+  if (
+    questionType === "lecturer" ||
+    normalizedQuestion.includes("dosen") ||
+    normalizedQuestion.includes("nip") ||
+    normalizedQuestion.includes("kode dosen")
+  ) {
+    const lecturerAnswer = buildLecturerFallbackAnswer(context);
+
+    if (lecturerAnswer) {
+      return lecturerAnswer;
+    }
+  }
+
+  if (
+    questionType === "procedure" ||
+    normalizedQuestion.includes("cara") ||
+    normalizedQuestion.includes("alur") ||
+    normalizedQuestion.includes("prosedur")
+  ) {
+    const procedureAnswer = buildProcedureFallbackAnswer(context, sourceTitle);
+
+    if (procedureAnswer) {
+      return procedureAnswer;
+    }
+  }
+
+  const shortContext = cleanText(context).slice(0, 1400);
+
+  return `Informasi yang tersedia dari ${sourceTitle} adalah:
 
 ${shortContext}
 
-Kalau informasi ini belum cukup jelas, kamu bisa menghubungi Customer Service LAA Akademik melalui WhatsApp.`;
+Jika informasi ini belum cukup jelas, kamu bisa menghubungi Customer Service LAA Akademik.`;
 }
 
 function isRateLimitError(error) {
@@ -31,7 +149,8 @@ function isRateLimitError(error) {
   return (
     message.toLowerCase().includes("rate limit") ||
     message.toLowerCase().includes("rate_limit_exceeded") ||
-    message.toLowerCase().includes("tokens per day")
+    message.toLowerCase().includes("tokens per day") ||
+    message.toLowerCase().includes("tokens per minute")
   );
 }
 
@@ -122,7 +241,7 @@ async function askGroq(question, context, sourceTitle, options = {}) {
   const correctionInstruction = options.isCorrection
     ? `
 Catatan percakapan:
-User sedang mengoreksi jawaban sebelumnya. Akui dengan sopan bahwa jawaban sebelumnya mungkin belum sesuai, lalu jawab ulang berdasarkan konteks dokumen yang sekarang tersedia.
+User sedang mengoreksi jawaban sebelumnya. Akui dengan sopan bahwa jawaban sebelumnya mungkin belum sesuai, lalu jawab ulang berdasarkan data yang sekarang tersedia.
 `
     : "";
 
@@ -187,9 +306,11 @@ ${sourceTitle}
 
     return (
       completion.choices[0]?.message?.content ||
-      "Maaf, aku belum bisa membuat jawaban dari data yang tersedia."
+      buildFallbackAnswer(question, trimmedContext, sourceTitle)
     );
   } catch (error) {
+    console.error("Groq Error:", error.message);
+
     if (isRateLimitError(error)) {
       return buildFallbackAnswer(question, trimmedContext, sourceTitle);
     }
