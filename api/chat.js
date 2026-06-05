@@ -15,7 +15,7 @@ module.exports = async function handler(req, res) {
     if (req.method !== "POST") {
       return res.status(405).json({
         success: false,
-        answer: "Method tidak diizinkan."
+        answer: "Method tidak diizinkan. Gunakan method POST."
       });
     }
 
@@ -39,12 +39,13 @@ module.exports = async function handler(req, res) {
       sources: result.sources || []
     });
   } catch (error) {
-    console.error("Chat Error:", error);
+    console.error("Vercel Chat Error:", error);
 
     return res.status(500).json({
       success: false,
       answer:
-        "Maaf, sedang terjadi kendala saat memproses pertanyaan. Coba ulangi beberapa saat lagi ya."
+        "Maaf, sedang terjadi kendala saat memproses pertanyaan. Coba ulangi beberapa saat lagi ya.",
+      error: error.message
     });
   }
 };
