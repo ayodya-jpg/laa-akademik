@@ -7,15 +7,15 @@ module.exports = async function handler(req, res) {
   try {
     const envCheck = {
       hasGoogleDriveFolderId: Boolean(process.env.GOOGLE_DRIVE_FOLDER_ID),
-      hasGoogleServiceAccountEmail: Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL),
-      hasGooglePrivateKey: Boolean(process.env.GOOGLE_PRIVATE_KEY),
-      serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || null,
+      hasGoogleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
+      hasGoogleClientSecret: Boolean(process.env.GOOGLE_CLIENT_SECRET),
+      hasGoogleRefreshToken: Boolean(process.env.GOOGLE_REFRESH_TOKEN),
       folderId: process.env.GOOGLE_DRIVE_FOLDER_ID || null,
-      privateKeyStart: process.env.GOOGLE_PRIVATE_KEY
-        ? process.env.GOOGLE_PRIVATE_KEY.slice(0, 35)
+      clientIdStart: process.env.GOOGLE_CLIENT_ID
+        ? process.env.GOOGLE_CLIENT_ID.slice(0, 20)
         : null,
-      privateKeyEnd: process.env.GOOGLE_PRIVATE_KEY
-        ? process.env.GOOGLE_PRIVATE_KEY.slice(-35)
+      refreshTokenStart: process.env.GOOGLE_REFRESH_TOKEN
+        ? process.env.GOOGLE_REFRESH_TOKEN.slice(0, 12)
         : null
     };
 
@@ -24,7 +24,7 @@ module.exports = async function handler(req, res) {
     const newData = [
       ...oldData,
       {
-        message: "Google Drive API berhasil digunakan dari Vercel",
+        message: "Google Drive API OAuth berhasil digunakan dari Vercel",
         createdAt: new Date().toISOString()
       }
     ];

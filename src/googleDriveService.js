@@ -3,26 +3,27 @@ const { Readable } = require("stream");
 
 const METADATA_FILE_NAME = "documents-metadata.json";
 
-function getPrivateKey() {
-  return String(process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
-}
-
 function getDriveClient() {
-  const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = getPrivateKey();
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
 
-  if (!clientEmail) {
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_EMAIL belum diatur.");
+  if (!clientId) {
+    throw new Error("GOOGLE_CLIENT_ID belum diatur.");
   }
 
-  if (!privateKey) {
-    throw new Error("GOOGLE_PRIVATE_KEY belum diatur.");
+  if (!clientSecret) {
+    throw new Error("GOOGLE_CLIENT_SECRET belum diatur.");
   }
 
-  const auth = new google.auth.JWT({
-    email: clientEmail,
-    key: privateKey,
-    scopes: ["https://www.googleapis.com/auth/drive"]
+  if (!refreshToken) {
+    throw new Error("GOOGLE_REFRESH_TOKEN belum diatur.");
+  }
+
+  const auth = new google.auth.OAuth2(clientId, clientSecret);
+
+  auth.setCredentials({
+    refresh_token: refreshToken
   });
 
   return google.drive({
@@ -62,14 +63,6 @@ async function uploadFileToDrive({ buffer, originalName, mimeType }) {
       body: bufferToStream(buffer)
     },
     fields: "id, name, mimeType, webViewLink, webContentLink, createdTime"
-  });
-
-  await drive.permissions.create({
-    fileId: response.data.id,
-    requestBody: {
-      type: "anyone",
-      role: "reader"
-    }
   });
 
   return {
