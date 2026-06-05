@@ -11,8 +11,6 @@ async function ensureLoaded() {
 
 module.exports = async function handler(req, res) {
   try {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-
     await ensureLoaded();
 
     return res.status(200).json({
@@ -21,7 +19,7 @@ module.exports = async function handler(req, res) {
       documents: getAllDocumentsInfo()
     });
   } catch (error) {
-    console.error("Vercel Status Error:", error);
+    console.error("Status Error:", error);
 
     return res.status(500).json({
       success: false,
