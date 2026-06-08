@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>LAA Akademik Bot - Telkom University Surabaya</title>
+
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+  <div class="page-wrapper">
+    <header class="navbar">
+      <div class="nav-left">
+        <div class="logo-box image-logo">
+          <img src="/images/logo-telyu.png" alt="Logo Telkom University Surabaya" />
+        </div>
+
+        <div class="brand-text">
+          <h1>LAA Akademik Bot</h1>
+          <p>Student Service Center • Telkom University Surabaya</p>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <a href="#layanan">Layanan</a>
+        <a href="#ssc">SSC</a>
+        <a href="#knowledge">Knowledge Base</a>
+        <a href="#alur">Alur Sistem</a>
+        <a href="/admin.html" class="admin-btn">Admin</a>
+        <a
+          href="https://wa.me/6281333249642?text=Halo%20CS%20LAA%20Akademik%2C%20saya%20ingin%20bertanya%20terkait%20layanan%20akademik."
+          target="_blank"
+          class="wa-btn"
+        >
+          WhatsApp CS
+        </a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-glow hero-glow-1"></div>
+        <div class="hero-glow hero-glow-2"></div>
+
+        <div class="hero-content premium-card">
+          <div class="hero-badge">
+            <span>✨</span>
+            <p>Layanan Mahasiswa Digital</p>
+          </div>
+
+          <h2>
+            Asisten akademik modern
+            <!-- <span>untuk membantu mahasiswa</span>
+            mendapatkan informasi
+            <em>lebih cepat dan elegan.</em> -->
+          </h2>
+
+          <p>
+            LAA Akademik Bot membantu mahasiswa Telkom University Surabaya dalam
+            mencari informasi akademik secara lebih cepat, akurat, dan nyaman.
+            Mulai dari kalender akademik, pedoman akademik, sidang TA, hingga data
+            dosen, semua dapat diakses melalui percakapan yang lebih natural dan modern.
+          </p>
+
+          <div class="hero-actions">
+            <button class="primary-btn" onclick="openChat()">
+              Tanya Sekarang
+            </button>
+
+            <a href="#layanan" class="secondary-btn">
+              Lihat Layanan
+            </a>
+          </div>
+
+          <div class="hero-stats">
+            <div class="stat-box">
+              <strong>24/7</strong>
+              <span>Akses Informasi</span>
+            </div>
+
+            <div class="stat-box">
+              <strong>7+</strong>
+              <span>Kategori Layanan</span>
+            </div>
+
+            <div class="stat-box">
+              <strong>RAG</strong>
+              <span>Berbasis Dokumen</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-visual premium-visual">
+          <div class="visual-ring"></div>
+          <div class="visual-ring visual-ring-2"></div>
+
+          <div class="chat-preview luxury-preview">
+            <div class="preview-topbar">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+
+            <div class="preview-header">
+              <div class="preview-avatar image-avatar">
+                <img src="/images/logo-telyu.png" alt="Logo Telkom University Surabaya" />
+              </div>
+              <div>
+                <h3>LAA Akademik Bot</h3>
+                <p>Online • siap membantu</p>
+              </div>
+            </div>
+
+            <div class="preview-body">
+              <div class="bubble bot">
+                Halo! Ada informasi akademik yang ingin kamu tanyakan?
+              </div>
+
+              <div class="bubble user">
+                Bagaimana cara daftar sidang TA?
+              </div>
+
+              <div class="bubble bot">
+                Saya akan bantu mencari informasi berdasarkan panduan akademik
+                yang tersedia.
+              </div>
+            </div>
+
+            <div class="preview-footer">
+              <button class="preview-button" onclick="openChat()">
+                Mulai Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="quick-summary">
+        <div class="summary-card">
+          <span>📅</span>
+          <h3>Kalender Akademik</h3>
+          <p>Registrasi, perwalian, PRS, perkuliahan, yudisium, dan wisuda.</p>
+        </div>
+
+        <div class="summary-card">
+          <span>📘</span>
+          <h3>Pedoman Akademik</h3>
+          <p>Aturan akademik, SKS, IPS, IPK, nilai, cuti, dan masa studi.</p>
+        </div>
+
+        <div class="summary-card">
+          <span>📑</span>
+          <h3>Sidang TA</h3>
+          <p>Informasi syarat, dokumen, dan alur pendaftaran sidang TA.</p>
+        </div>
+
+        <div class="summary-card">
+          <span>👨‍🏫</span>
+          <h3>Data Dosen</h3>
+          <p>Informasi dosen, NIP/NIDN, program studi, dan data pendukung.</p>
+        </div>
+      </section>
+
+      <section id="ssc" class="ssc-section">
+        <div class="ssc-card">
+          <div class="ssc-text">
+            <span class="ssc-badge">Student Service Center</span>
+            <h2>Tim SSC Telkom University Surabaya</h2>
+            <p>
+              Student Service Center hadir untuk memberikan layanan akademik yang
+              lebih dekat, ramah, dan responsif bagi mahasiswa. Melalui LAA Akademik Bot,
+              mahasiswa dapat memperoleh informasi akademik secara digital dengan lebih cepat,
+              praktis, dan mudah diakses kapan saja.
+            </p>
+
+            <div class="ssc-actions">
+              <button class="primary-btn" onclick="openChat()">
+                Tanya LAA Bot
+              </button>
+
+              <a
+                href="https://wa.me/6281333249642?text=Halo%20CS%20LAA%20Akademik%2C%20saya%20ingin%20bertanya%20terkait%20layanan%20akademik."
+                target="_blank"
+                class="secondary-btn"
+              >
+                Hubungi CS
+              </a>
+            </div>
+          </div>
+
+          <div class="ssc-image-wrap">
+            <img src="/images/ssc-team.png" alt="Tim SSC Telkom University Surabaya" class="ssc-image" />
+          </div>
+        </div>
+      </section>
+
+      <section id="layanan" class="section">
+        <div class="section-title">
+          <span>Layanan</span>
+          <h2>Pilih layanan akademik yang kamu butuhkan</h2>
+          <p>
+            Klik salah satu layanan untuk langsung membuka chatbot dengan
+            pertanyaan awal.
+          </p>
+        </div>
+
+        <div class="service-grid">
+          <button class="service-card" onclick="openChatWith('kapan registrasi semester genap?')">
+            <div class="icon">📅</div>
+            <h3>Kalender Akademik</h3>
+            <p>Informasi registrasi, PRS, jadwal kuliah, UTS, UAS, dan wisuda.</p>
+          </button>
+
+          <button class="service-card" onclick="openChatWith('apa saja aturan pedoman akademik?')">
+            <div class="icon">📘</div>
+            <h3>Pedoman Akademik</h3>
+            <p>Aturan akademik, masa studi, cuti, penilaian, dan kelulusan.</p>
+          </button>
+
+          <button class="service-card" onclick="openChatWith('berapa maksimal SKS yang bisa diambil?')">
+            <div class="icon">🎓</div>
+            <h3>SKS, IPS, IPK</h3>
+            <p>Informasi beban studi, indeks prestasi, dan ketentuan nilai.</p>
+          </button>
+
+          <button class="service-card" onclick="openChatWith('bagaimana cara daftar sidang TA?')">
+            <div class="icon">📑</div>
+            <h3>Pendaftaran Sidang TA</h3>
+            <p>Alur pendaftaran, syarat dokumen, dan ketentuan sidang TA.</p>
+          </button>
+
+          <button class="service-card" onclick="openChatWith('apa syarat tugas akhir?')">
+            <div class="icon">📝</div>
+            <h3>Tugas Akhir</h3>
+            <p>Informasi tugas akhir, pembimbing, penguji, dan dokumen TA.</p>
+          </button>
+
+          <button class="service-card" onclick="openChatWith('data dosen')">
+            <div class="icon">👨‍🏫</div>
+            <h3>Data Dosen</h3>
+            <p>Cari informasi dosen berdasarkan nama, NIP, NIDN, atau prodi.</p>
+          </button>
+        </div>
+      </section>
+
+      <section id="knowledge" class="knowledge-section">
+        <div class="knowledge-content">
+          <div class="section-title left">
+            <span>Knowledge Base</span>
+            <h2>Chatbot menjawab berdasarkan sumber data akademik</h2>
+            <p>
+              Informasi yang diberikan chatbot diambil dari dokumen akademik,
+              file data dosen, dan database update yang tersedia.
+            </p>
+          </div>
+
+          <div class="knowledge-list">
+            <div class="knowledge-item">
+              <strong>01</strong>
+              <div>
+                <h3>Dokumen PDF Akademik</h3>
+                <p>Kalender akademik, pedoman akademik, dan panduan sidang TA.</p>
+              </div>
+            </div>
+
+            <div class="knowledge-item">
+              <strong>02</strong>
+              <div>
+                <h3>Data Excel</h3>
+                <p>Data dosen dan informasi pendukung akademik.</p>
+              </div>
+            </div>
+
+            <div class="knowledge-item">
+              <strong>03</strong>
+              <div>
+                <h3>Update Admin</h3>
+                <p>Informasi baru dapat ditambahkan melalui halaman admin.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="knowledge-card">
+          <h3>Cakupan Informasi</h3>
+
+          <div class="progress-group">
+            <div class="progress-label">
+              <span>Kalender Akademik</span>
+              <b>90%</b>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width: 90%"></div>
+            </div>
+          </div>
+
+          <div class="progress-group">
+            <div class="progress-label">
+              <span>Pedoman Akademik</span>
+              <b>85%</b>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width: 85%"></div>
+            </div>
+          </div>
+
+          <div class="progress-group">
+            <div class="progress-label">
+              <span>Sidang TA</span>
+              <b>80%</b>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width: 80%"></div>
+            </div>
+          </div>
+
+          <div class="progress-group">
+            <div class="progress-label">
+              <span>Data Dosen</span>
+              <b>75%</b>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width: 75%"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="alur" class="section">
+        <div class="section-title">
+          <span>Alur Sistem</span>
+          <h2>Bagaimana chatbot bekerja?</h2>
+          <p>
+            Sistem dirancang agar mahasiswa bisa bertanya secara natural dan
+            mendapatkan jawaban berdasarkan dokumen yang relevan.
+          </p>
+        </div>
+
+        <div class="flow-grid">
+          <div class="flow-card">
+            <div class="flow-number">1</div>
+            <h3>Mahasiswa Bertanya</h3>
+            <p>Pengguna mengetik pertanyaan melalui website chatbot.</p>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-number">2</div>
+            <h3>Sistem Mencari Konteks</h3>
+            <p>Chatbot mencocokkan pertanyaan dengan dokumen akademik.</p>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-number">3</div>
+            <h3>Jawaban Disusun</h3>
+            <p>LLM menyusun jawaban yang lebih mudah dipahami mahasiswa.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="cta-section">
+        <div>
+          <span>Butuh bantuan langsung?</span>
+          <h2>Hubungi Customer Service LAA Akademik</h2>
+          <p>
+            Jika jawaban chatbot belum cukup, kamu dapat menghubungi CS akademik
+            melalui WhatsApp.
+          </p>
+        </div>
+
+        <a
+          href="https://wa.me/6281333249642?text=Halo%20CS%20LAA%20Akademik%2C%20saya%20ingin%20bertanya%20terkait%20layanan%20akademik."
+          target="_blank"
+          class="cta-wa"
+        >
+          WhatsApp CS
+        </a>
+      </section>
+    </main>
+
+    <button class="floating-chat" onclick="openChat()">
+      💬
+    </button>
+  </div>
+
+  <section id="chatOverlay" class="chat-overlay hidden">
+    <aside class="chat-sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-badge">LAA • SSC</div>
+        <h2>LAA Akademik Bot</h2>
+        <p>
+          Asisten digital layanan akademik Telkom University Surabaya.
+        </p>
+
+        <button class="back-btn" onclick="closeChat()">
+          ← Kembali ke Beranda
+        </button>
+      </div>
+
+      <div class="sidebar-menu">
+        <h3>Layanan Cepat</h3>
+
+        <button onclick="quickAsk('kapan registrasi semester genap?')">📅 Kalender Akademik</button>
+        <button onclick="quickAsk('apa saja aturan pedoman akademik?')">📘 Pedoman Akademik</button>
+        <button onclick="quickAsk('berapa maksimal SKS yang bisa diambil?')">🎓 SKS & Nilai</button>
+        <button onclick="quickAsk('bagaimana cara daftar sidang TA?')">📑 Sidang TA</button>
+        <button onclick="quickAsk('data dosen')">👨‍🏫 Data Dosen</button>
+      </div>
+
+      <div class="sidebar-help">
+        <h3>Customer Service</h3>
+        <p>Butuh bantuan dari CS akademik?</p>
+        <a
+          href="https://wa.me/6281333249642?text=Halo%20CS%20LAA%20Akademik%2C%20saya%20ingin%20bertanya%20terkait%20layanan%20akademik."
+          target="_blank"
+        >
+          WhatsApp CS
+        </a>
+      </div>
+    </aside>
+
+    <main class="chat-panel">
+      <header class="chat-header">
+        <div class="chat-profile">
+          <div class="chat-avatar image-chat-avatar">
+            <img src="/images/logo-telyu.png" alt="Logo Telkom University Surabaya" />
+          </div>
+          <div>
+            <h2>LAA Akademik Bot</h2>
+            <p>Student Service Center • Layanan Akademik</p>
+          </div>
+        </div>
+
+        <div class="chat-status">
+          <span></span>
+          Online
+        </div>
+      </header>
+
+      <div class="chat-suggestions">
+        <button onclick="quickAsk('menu')">Menu</button>
+        <button onclick="quickAsk('kapan registrasi?')">Registrasi</button>
+        <button onclick="quickAsk('kapan PRS?')">PRS</button>
+        <button onclick="quickAsk('berapa maksimal SKS?')">SKS</button>
+        <button onclick="quickAsk('bagaimana cara daftar sidang TA?')">Sidang TA</button>
+        <button onclick="quickAsk('data dosen')">Data Dosen</button>
+      </div>
+
+      <section id="chatBox" class="chat-box">
+        <div class="message-row bot">
+          <div class="message-bubble">
+            Halo! 👋 Saya LAA Akademik Bot. Silakan tanyakan informasi akademik
+            yang kamu butuhkan.
+          </div>
+          <div class="message-meta">LAA Akademik Bot</div>
+        </div>
+      </section>
+
+      <form id="chatForm" class="chat-form">
+        <input
+          type="text"
+          id="chatInput"
+          placeholder="Tulis pertanyaan kamu di sini..."
+          autocomplete="off"
+        />
+        <button type="submit">Kirim</button>
+      </form>
+    </main>
+  </section>
+
+  <script>
+    const chatOverlay = document.getElementById("chatOverlay");
+    const chatBox = document.getElementById("chatBox");
+    const chatForm = document.getElementById("chatForm");
+    const chatInput = document.getElementById("chatInput");
+
+    function openChat() {
+      chatOverlay.classList.remove("hidden");
+      document.body.style.overflow = "hidden";
+      setTimeout(() => chatInput.focus(), 150);
+    }
+
+    function closeChat() {
+      chatOverlay.classList.add("hidden");
+      document.body.style.overflow = "auto";
+    }
+
+    function openChatWith(message) {
+      openChat();
+      setTimeout(() => {
+        sendMessage(message);
+      }, 250);
+    }
+
+    function quickAsk(message) {
+      sendMessage(message);
+    }
+
+    function getTime() {
+      return new Date().toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function addMessage(sender, text) {
+      const row = document.createElement("div");
+      row.className = `message-row ${sender}`;
+
+      row.innerHTML = `
+        <div class="message-bubble">${escapeHtml(text)}</div>
+        <div class="message-meta">
+          ${sender === "user" ? "Anda" : "LAA Akademik Bot"} • ${getTime()}
+        </div>
+      `;
+
+      chatBox.appendChild(row);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function addLoading() {
+      const id = `loading-${Date.now()}`;
+
+      const row = document.createElement("div");
+      row.className = "message-row bot";
+      row.id = id;
+
+      row.innerHTML = `
+        <div class="message-bubble typing">
+          <span></span><span></span><span></span>
+        </div>
+        <div class="message-meta">LAA Akademik Bot sedang mengetik...</div>
+      `;
+
+      chatBox.appendChild(row);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      return id;
+    }
+
+    function removeLoading(id) {
+      const element = document.getElementById(id);
+      if (element) element.remove();
+    }
+
+    async function sendMessage(message) {
+      const userMessage = String(message || chatInput.value || "").trim();
+
+      if (!userMessage) return;
+
+      addMessage("user", userMessage);
+      chatInput.value = "";
+
+      const loadingId = addLoading();
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            message: userMessage
+          })
+        });
+
+        const data = await response.json();
+
+        removeLoading(loadingId);
+
+        if (!response.ok || !data.success) {
+          addMessage("bot", data.answer || "Maaf, terjadi kendala pada server.");
+          return;
+        }
+
+        addMessage("bot", data.answer || "Maaf, saya belum bisa menjawab pertanyaan tersebut.");
+      } catch (error) {
+        removeLoading(loadingId);
+        addMessage("bot", "Tidak dapat terhubung ke server chatbot. Pastikan server berjalan dengan benar.");
+      }
+    }
+
+    chatForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      sendMessage();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - LAA Akademik Bot</title>
+
+  <style>
+    :root {
+      --primary: #b31217;
+      --primary-dark: #7f0d12;
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --success: #15803d;
+      --danger: #b91c1c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      padding: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 26px;
+    }
+
+    .header p {
+      margin: 8px 0 0;
+      opacity: 0.9;
+    }
+
+    .back-home {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      color: var(--primary-dark);
+      text-decoration: none;
+      font-weight: 800;
+      border-radius: 999px;
+      padding: 11px 16px;
+      white-space: nowrap;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+      transition: 0.2s ease;
+    }
+
+    .back-home:hover {
+      background: #fff0f1;
+      transform: translateY(-2px);
+    }
+
+    .container {
+      width: min(1100px, 92%);
+      margin: 24px auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    }
+
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 20px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      padding: 12px 13px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      background: white;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(179, 18, 23, 0.12);
+    }
+
+    textarea {
+      min-height: 86px;
+      resize: vertical;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .btn-secondary:hover {
+      background: #d1d5db;
+    }
+
+    .alert {
+      display: none;
+      margin-top: 16px;
+      padding: 13px 14px;
+      border-radius: 10px;
+      line-height: 1.5;
+      white-space: pre-line;
+    }
+
+    .alert.success {
+      display: block;
+      background: #dcfce7;
+      color: var(--success);
+      border: 1px solid #bbf7d0;
+    }
+
+    .alert.error {
+      display: block;
+      background: #fee2e2;
+      color: var(--danger);
+      border: 1px solid #fecaca;
+    }
+
+    .documents {
+      display: grid;
+      gap: 12px;
+    }
+
+    .document-item {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .document-item h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+    }
+
+    .document-meta {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .document-link {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--primary);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .document-link:hover {
+      text-decoration: underline;
+    }
+
+    .empty {
+      color: var(--muted);
+      padding: 14px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .note {
+      background: #fff7ed;
+      color: #9a3412;
+      border: 1px solid #fed7aa;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 760px) {
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .back-home {
+        width: 100%;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header h1 {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="header">
+    <div>
+      <h1>Admin LAA Akademik Bot</h1>
+      <p>Upload dokumen akademik ke Google Drive untuk kebutuhan knowledge base chatbot.</p>
+    </div>
+
+    <a href="/" class="back-home">← Kembali ke Beranda</a>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Upload Dokumen</h2>
+
+      <div class="note">
+        Dokumen akan disimpan ke Google Drive. Metadata dokumen akan disimpan ke file
+        <b>documents-metadata.json</b> di folder Google Drive yang sama.
+      </div>
+
+      <form id="uploadForm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="pin">PIN Admin</label>
+            <input type="password" id="pin" name="pin" placeholder="Masukkan PIN admin" required />
+          </div>
+
+          <div class="form-group">
+            <label for="document">File Dokumen</label>
+            <input
+              type="file"
+              id="document"
+              name="document"
+              accept=".pdf,.xlsx,.xls"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="title">Judul Dokumen</label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              placeholder="Contoh: Tutorial Pengajuan Surat KP"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="intent">Intent</label>
+            <input
+              type="text"
+              id="intent"
+              name="intent"
+              placeholder="Contoh: surat_kp"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="category">Kategori</label>
+            <input
+              type="text"
+              id="category"
+              name="category"
+              placeholder="Contoh: Surat Pengantar KP/Magang"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="link">Link Tambahan</label>
+            <input
+              type="url"
+              id="link"
+              name="link"
+              placeholder="Opsional, misal link TOSS atau website akademik"
+            />
+          </div>
+
+          <div class="form-group full">
+            <label for="keywords">Keywords</label>
+            <textarea
+              id="keywords"
+              name="keywords"
+              placeholder="Pisahkan dengan koma. Contoh: kerja praktik, kp, magang, toss, surat pengantar kp"
+              required
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn-primary" id="uploadButton">
+            Upload ke Google Drive
+          </button>
+
+          <button type="button" class="btn-secondary" id="refreshButton">
+            Refresh Daftar Dokumen
+          </button>
+
+          <button type="button" class="btn-secondary" onclick="window.location.href='/'">
+            Kembali ke Beranda
+          </button>
+        </div>
+
+        <div id="messageBox" class="alert"></div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Daftar Dokumen Google Drive</h2>
+      <div id="documentsList" class="documents">
+        <div class="empty">Memuat daftar dokumen...</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const uploadForm = document.getElementById("uploadForm");
+    const uploadButton = document.getElementById("uploadButton");
+    const refreshButton = document.getElementById("refreshButton");
+    const messageBox = document.getElementById("messageBox");
+    const documentsList = document.getElementById("documentsList");
+
+    function showMessage(type, message) {
+      messageBox.className = `alert ${type}`;
+      messageBox.textContent = message;
+    }
+
+    function clearMessage() {
+      messageBox.className = "alert";
+      messageBox.textContent = "";
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatDate(value) {
+      if (!value) return "-";
+
+      try {
+        return new Date(value).toLocaleString("id-ID");
+      } catch (error) {
+        return value;
+      }
+    }
+
+    async function readJsonSafely(response) {
+      const contentType = response.headers.get("content-type") || "";
+      const text = await response.text();
+
+      if (!contentType.includes("application/json")) {
+        throw new Error(
+          "API tidak mengembalikan JSON. Kemungkinan route API belum tersedia atau server mengembalikan halaman HTML/error page."
+        );
+      }
+
+      try {
+        return JSON.parse(text);
+      } catch (error) {
+        throw new Error("Response API bukan JSON valid.");
+      }
+    }
+
+    async function loadDocuments() {
+      documentsList.innerHTML = `<div class="empty">Memuat daftar dokumen...</div>`;
+
+      try {
+        const response = await fetch("/api/drive-documents");
+        const data = await readJsonSafely(response);
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Gagal mengambil daftar dokumen.");
+        }
+
+        const documents = data.documents || [];
+
+        if (!documents.length) {
+          documentsList.innerHTML = `<div class="empty">Belum ada dokumen yang di-upload ke Google Drive.</div>`;
+          return;
+        }
+
+        documentsList.innerHTML = documents
+          .map((doc) => {
+            const keywords = Array.isArray(doc.keywords)
+              ? doc.keywords.join(", ")
+              : doc.keywords || "-";
+
+            const driveLink = doc.driveViewLink || doc.link || "#";
+
+            return `
+              <div class="document-item">
+                <h3>${escapeHtml(doc.title)}</h3>
+                <div class="document-meta">
+                  <div><b>File:</b> ${escapeHtml(doc.originalName || doc.fileName)}</div>
+                  <div><b>Intent:</b> ${escapeHtml(doc.intent)}</div>
+                  <div><b>Kategori:</b> ${escapeHtml(doc.category)}</div>
+                  <div><b>Tipe:</b> ${escapeHtml(doc.type)}</div>
+                  <div><b>Keywords:</b> ${escapeHtml(keywords)}</div>
+                  <div><b>Upload:</b> ${escapeHtml(formatDate(doc.uploadedAt))}</div>
+                </div>
+                ${
+                  driveLink && driveLink !== "#"
+                    ? `<a class="document-link" href="${escapeHtml(driveLink)}" target="_blank" rel="noopener noreferrer">Buka di Google Drive</a>`
+                    : ""
+                }
+              </div>
+            `;
+          })
+          .join("");
+      } catch (error) {
+        documentsList.innerHTML = `
+          <div class="empty">
+            Gagal memuat daftar dokumen.<br />
+            ${escapeHtml(error.message)}<br /><br />
+            Pastikan endpoint <b>/api/drive-documents</b> sudah tersedia dan environment Google Drive sudah benar.
+          </div>
+        `;
+      }
+    }
+
+    uploadForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      clearMessage();
+
+      const formData = new FormData(uploadForm);
+
+      uploadButton.disabled = true;
+      uploadButton.textContent = "Mengupload...";
+
+      try {
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await readJsonSafely(response);
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || data.error || "Upload gagal.");
+        }
+
+        showMessage(
+          "success",
+          `${data.message}\n\nJudul: ${data.document.title}\nFile: ${data.document.originalName}`
+        );
+
+        uploadForm.reset();
+        await loadDocuments();
+      } catch (error) {
+        showMessage("error", error.message);
+      } finally {
+        uploadButton.disabled = false;
+        uploadButton.textContent = "Upload ke Google Drive";
+      }
+    });
+
+    refreshButton.addEventListener("click", loadDocuments);
+
+    loadDocuments();
+  </script>
+</body>
+</html>
