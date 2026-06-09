@@ -6,7 +6,8 @@ const {
   createUpdate,
   isResetCommand,
   parseResetCommand,
-  resetUpdates
+  resetUpdates,
+  buildUpdateContext
 } = require("./updateService");
 const chatbotConfig = require("./config/chatbotConfig");
 
@@ -240,6 +241,179 @@ async function handleAdminPin(message) {
   }
 }
 
+function isUpdateResult(item) {
+  return (
+    item.fileName === "knowledge-updates.json" ||
+    item.type === "database" ||
+    item.intent === "update" ||
+    item.source?.title === "Database Update Chatbot"
+  );
+}
+
+function orderResultsByPriority(results = []) {
+  const updateResults = results.filter((item) => isUpdateResult(item));
+  const normalResults = results.filter((item) => !isUpdateResult(item));
+
+  return [...updateResults, ...normalResults];
+}
+
+function buildContext(results = []) {
+  return results
+    .map((item, index) => {
+      const priorityNote = isUpdateResult(item)
+        ? `CATATAN PRIORITAS:
+Ini adalah data update terbaru dari admin. Jika data ini bertentangan dengan dokumen lain, Excel, atau PDF, maka data update admin ini wajib digunakan sebagai jawaban utama. Jangan gunakan nilai lama dari dokumen lain untuk topik yang sama.`
+        : "Data pendukung dari dokumen akademik.";
+
+      return `Data ${index + 1}
+Sumber: ${item.source.title}
+Jenis: ${item.type}
+Prioritas:
+${priorityNote}
+
+Isi:
+${item.content}`;
+    })
+    .join("\n\n====================\n\n");
+}
+
+function buildUniqueSources(results = []) {
+  const uniqueSources = [];
+  const usedFileNames = new Set();
+
+  results.forEach((item) => {
+    if (!usedFileNames.has(item.fileName)) {
+      usedFileNames.add(item.fileName);
+      uniqueSources.push({
+        title: item.source.title,
+        link: item.source.link
+      });
+    }
+  });
+
+  return uniqueSources;
+}
+
+function appendSources(answer, sources = []) {
+  if (!sources.length) {
+    return answer;
+  }
+
+  let finalAnswer = answer;
+
+  finalAnswer += "\n\n📌 Sumber dokumen:";
+
+  sources.forEach((source, index) => {
+    finalAnswer += `\n${index + 1}. ${source.title}`;
+
+    if (source.link && !source.link.includes("ISI_LINK")) {
+      finalAnswer += `\n   Download: ${source.link}`;
+    }
+  });
+
+  return finalAnswer;
+}
+
+/*
+  Fungsi ini mengambil nilai update dari teks updateService.
+  Dibuat fleksibel karena format updateContext bisa berbeda-beda.
+*/
+function extractUpdateData(updateContext) {
+  const text = String(updateContext || "");
+
+  const topicMatch =
+    text.match(/Topik:\s*([^\n]+)/i) ||
+    text.match(/topik\s*[:=]\s*([^\n]+)/i);
+
+  const valueMatch =
+    text.match(/Nilai baru:\s*([^\n]+)/i) ||
+    text.match(/nilai\s*baru\s*[:=]\s*([^\n]+)/i) ||
+    text.match(/menjadi\s+([^\n]+)/i) ||
+    text.match(/jadi\s+([^\n]+)/i);
+
+  const topic = topicMatch ? topicMatch[1].trim() : "";
+  const value = valueMatch ? valueMatch[1].trim() : "";
+
+  return {
+    topic,
+    value,
+    raw: text
+  };
+}
+
+function buildDirectUpdateAnswer(question, updateContext) {
+  const normalizedQuestion = normalizeChatText(question);
+  const updateData = extractUpdateData(updateContext);
+
+  const topic = updateData.topic || normalizedQuestion;
+  const value = updateData.value;
+
+  if (!updateContext || !String(updateContext).trim()) {
+    return null;
+  }
+
+  /*
+    Kalau updateContext punya nilai baru, langsung jawab nilai baru.
+    Ini mencegah chatbot balik lagi ke Excel lama.
+  */
+  if (value) {
+    if (normalizedQuestion.includes("nip")) {
+      return `Data terbaru dari admin menunjukkan bahwa NIP untuk ${topic.replace(/^nip\s+/i, "")} adalah ${value}.`;
+    }
+
+    return `Data terbaru dari admin untuk ${topic} adalah ${value}.`;
+  }
+
+  /*
+    Kalau format updateContext tidak berhasil diparse,
+    tetap tampilkan isi update sebagai sumber utama.
+  */
+  return `Data terbaru dari admin yang tersedia adalah:
+
+${String(updateContext).trim()}`;
+}
+
+function shouldUseDirectUpdateAnswer(question, updateContext) {
+  if (!updateContext) {
+    return false;
+  }
+
+  const normalizedQuestion = normalizeChatText(question);
+  const normalizedUpdate = normalizeChatText(updateContext);
+
+  /*
+    Jika pertanyaan user berkaitan dengan data yang di-update,
+    jawab langsung dari updateContext.
+  */
+  const importantKeywords = [
+    "nip",
+    "nidn",
+    "kode dosen",
+    "dosen",
+    "pendaftaran",
+    "tanggal",
+    "jadwal",
+    "ta",
+    "sidang",
+    "prs",
+    "registrasi"
+  ];
+
+  const hasImportantKeyword = importantKeywords.some((keyword) =>
+    normalizedQuestion.includes(keyword)
+  );
+
+  const questionTokens = normalizedQuestion
+    .split(" ")
+    .filter((word) => word.length > 2);
+
+  const matchedTokenCount = questionTokens.filter((token) =>
+    normalizedUpdate.includes(token)
+  ).length;
+
+  return hasImportantKeyword || matchedTokenCount >= 1;
+}
+
 async function processChat(message) {
   const cleanMessage = String(message || "").trim();
 
@@ -272,6 +446,33 @@ async function processChat(message) {
   }
 
   const convertedMessage = convertMenuToQuestion(cleanMessage);
+
+  /*
+    CEK UPDATE ADMIN LANGSUNG DI SINI.
+    Jika ada update yang cocok, langsung balas dari Database Update Chatbot,
+    tanpa menunggu Excel/PDF/Groq.
+  */
+  const directUpdateContext = await buildUpdateContext(convertedMessage);
+
+  if (shouldUseDirectUpdateAnswer(cleanMessage, directUpdateContext)) {
+    const directAnswer = buildDirectUpdateAnswer(cleanMessage, directUpdateContext);
+
+    if (directAnswer) {
+      return {
+        answer:
+          `${directAnswer}
+
+Kamu bisa tanya lagi dengan lebih spesifik, atau ketik "menu" untuk melihat pilihan informasi lainnya.`,
+        sources: [
+          {
+            title: "Database Update Chatbot",
+            link: ""
+          }
+        ]
+      };
+    }
+  }
+
   const search = await searchRelevantDocuments(convertedMessage);
 
   if (!search.results.length) {
@@ -281,48 +482,16 @@ async function processChat(message) {
     };
   }
 
-  const topResults = search.results;
+  const orderedResults = orderResultsByPriority(search.results);
 
-  const context = topResults
-    .map((item, index) => {
-      return `Data ${index + 1}
-Sumber: ${item.source.title}
-Jenis: ${item.type}
-Isi:
-${item.content}`;
-    })
-    .join("\n\n====================\n\n");
-
-  const mainSource = topResults[0].source;
+  const context = buildContext(orderedResults);
+  const mainSource = orderedResults[0].source;
 
   const aiAnswer = await askGroq(cleanMessage, context, mainSource.title);
 
-  const uniqueSources = [];
-  const usedFileNames = new Set();
+  const uniqueSources = buildUniqueSources(orderedResults);
 
-  topResults.forEach((item) => {
-    if (!usedFileNames.has(item.fileName)) {
-      usedFileNames.add(item.fileName);
-      uniqueSources.push({
-        title: item.source.title,
-        link: item.source.link
-      });
-    }
-  });
-
-  let finalAnswer = aiAnswer;
-
-  if (uniqueSources.length > 0) {
-    finalAnswer += "\n\n📌 Sumber dokumen:";
-
-    uniqueSources.forEach((source, index) => {
-      finalAnswer += `\n${index + 1}. ${source.title}`;
-
-      if (source.link && !source.link.includes("ISI_LINK")) {
-        finalAnswer += `\n   Download: ${source.link}`;
-      }
-    });
-  }
+  let finalAnswer = appendSources(aiAnswer, uniqueSources);
 
   finalAnswer +=
     '\n\nKamu bisa tanya lagi dengan lebih spesifik, atau ketik "menu" untuk melihat pilihan informasi lainnya.';

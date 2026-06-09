@@ -3,394 +3,235 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>Admin - LAA Akademik Bot</title>
 
-  <style>
-    :root {
-      --primary: #b31217;
-      --primary-dark: #7f0d12;
-      --bg: #f6f7fb;
-      --card: #ffffff;
-      --text: #1f2937;
-      --muted: #6b7280;
-      --border: #e5e7eb;
-      --success: #15803d;
-      --danger: #b91c1c;
-    }
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet"
+  />
 
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-    }
-
-    .header {
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      color: white;
-      padding: 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 18px;
-    }
-
-    .header h1 {
-      margin: 0;
-      font-size: 26px;
-    }
-
-    .header p {
-      margin: 8px 0 0;
-      opacity: 0.9;
-    }
-
-    .back-home {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: #ffffff;
-      color: var(--primary-dark);
-      text-decoration: none;
-      font-weight: 800;
-      border-radius: 999px;
-      padding: 11px 16px;
-      white-space: nowrap;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-      transition: 0.2s ease;
-    }
-
-    .back-home:hover {
-      background: #fff0f1;
-      transform: translateY(-2px);
-    }
-
-    .container {
-      width: min(1100px, 92%);
-      margin: 24px auto;
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 20px;
-    }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 22px;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-    }
-
-    .card h2 {
-      margin: 0 0 14px;
-      font-size: 20px;
-    }
-
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
-    }
-
-    .form-group.full {
-      grid-column: 1 / -1;
-    }
-
-    label {
-      font-weight: 700;
-      font-size: 14px;
-    }
-
-    input,
-    textarea,
-    select {
-      width: 100%;
-      padding: 12px 13px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      font-size: 14px;
-      outline: none;
-      background: white;
-    }
-
-    input:focus,
-    textarea:focus,
-    select:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(179, 18, 23, 0.12);
-    }
-
-    textarea {
-      min-height: 86px;
-      resize: vertical;
-    }
-
-    .actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 16px;
-      flex-wrap: wrap;
-    }
-
-    button {
-      border: none;
-      border-radius: 10px;
-      padding: 12px 16px;
-      font-weight: 700;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: var(--primary-dark);
-    }
-
-    .btn-secondary {
-      background: #e5e7eb;
-      color: #111827;
-    }
-
-    .btn-secondary:hover {
-      background: #d1d5db;
-    }
-
-    .alert {
-      display: none;
-      margin-top: 16px;
-      padding: 13px 14px;
-      border-radius: 10px;
-      line-height: 1.5;
-      white-space: pre-line;
-    }
-
-    .alert.success {
-      display: block;
-      background: #dcfce7;
-      color: var(--success);
-      border: 1px solid #bbf7d0;
-    }
-
-    .alert.error {
-      display: block;
-      background: #fee2e2;
-      color: var(--danger);
-      border: 1px solid #fecaca;
-    }
-
-    .documents {
-      display: grid;
-      gap: 12px;
-    }
-
-    .document-item {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px;
-      background: #fff;
-    }
-
-    .document-item h3 {
-      margin: 0 0 6px;
-      font-size: 16px;
-    }
-
-    .document-meta {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.6;
-    }
-
-    .document-link {
-      display: inline-block;
-      margin-top: 8px;
-      color: var(--primary);
-      font-weight: 700;
-      text-decoration: none;
-    }
-
-    .document-link:hover {
-      text-decoration: underline;
-    }
-
-    .empty {
-      color: var(--muted);
-      padding: 14px;
-      border: 1px dashed var(--border);
-      border-radius: 12px;
-      text-align: center;
-      line-height: 1.5;
-    }
-
-    .note {
-      background: #fff7ed;
-      color: #9a3412;
-      border: 1px solid #fed7aa;
-      padding: 12px 14px;
-      border-radius: 10px;
-      font-size: 14px;
-      line-height: 1.5;
-      margin-bottom: 14px;
-    }
-
-    @media (max-width: 760px) {
-      .header {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .back-home {
-        width: 100%;
-      }
-
-      .form-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .header h1 {
-        font-size: 22px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="/admin.css" />
 </head>
 
 <body>
-  <header class="header">
-    <div>
-      <h1>Admin LAA Akademik Bot</h1>
-      <p>Upload dokumen akademik ke Google Drive untuk kebutuhan knowledge base chatbot.</p>
-    </div>
+  <header class="admin-header">
+    <div class="container admin-header-inner">
+      <a href="/" class="brand">
+        <img
+          src="/images/logo-telyu.png"
+          alt="Logo Telkom University Surabaya"
+          class="brand-logo"
+        />
 
-    <a href="/" class="back-home">← Kembali ke Beranda</a>
+        <div class="brand-text">
+          <strong>Admin LAA Akademik Bot</strong>
+          <span>Kelola knowledge base chatbot</span>
+        </div>
+      </a>
+
+      <div class="header-actions">
+        <a href="/" class="btn btn-outline">← Beranda</a>
+        <a href="/chat.html" class="btn btn-primary">Buka Chatbot</a>
+      </div>
+    </div>
   </header>
 
-  <main class="container">
-    <section class="card">
-      <h2>Upload Dokumen</h2>
+  <section class="admin-hero">
+    <div class="container">
+      <div class="admin-hero-card">
+        <div class="hero-content">
+          <span class="hero-badge">Admin Knowledge Base</span>
 
-      <div class="note">
-        Dokumen akan disimpan ke Google Drive. Metadata dokumen akan disimpan ke file
-        <b>documents-metadata.json</b> di folder Google Drive yang sama.
-      </div>
+          <h1>Kelola dokumen akademik chatbot dengan lebih rapi</h1>
 
-      <form id="uploadForm">
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="pin">PIN Admin</label>
-            <input type="password" id="pin" name="pin" placeholder="Masukkan PIN admin" required />
-          </div>
-
-          <div class="form-group">
-            <label for="document">File Dokumen</label>
-            <input
-              type="file"
-              id="document"
-              name="document"
-              accept=".pdf,.xlsx,.xls"
-              required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="title">Judul Dokumen</label>
-            <input
-              type="text"
-              id="title"
-              name="title"
-              placeholder="Contoh: Tutorial Pengajuan Surat KP"
-              required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="intent">Intent</label>
-            <input
-              type="text"
-              id="intent"
-              name="intent"
-              placeholder="Contoh: surat_kp"
-              required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="category">Kategori</label>
-            <input
-              type="text"
-              id="category"
-              name="category"
-              placeholder="Contoh: Surat Pengantar KP/Magang"
-              required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="link">Link Tambahan</label>
-            <input
-              type="url"
-              id="link"
-              name="link"
-              placeholder="Opsional, misal link TOSS atau website akademik"
-            />
-          </div>
-
-          <div class="form-group full">
-            <label for="keywords">Keywords</label>
-            <textarea
-              id="keywords"
-              name="keywords"
-              placeholder="Pisahkan dengan koma. Contoh: kerja praktik, kp, magang, toss, surat pengantar kp"
-              required
-            ></textarea>
-          </div>
+          <p>
+            Upload dokumen PDF atau Excel ke Google Drive, lengkapi metadata,
+            lalu gunakan sebagai sumber pengetahuan untuk LAA Akademik Bot.
+          </p>
         </div>
 
-        <div class="actions">
-          <button type="submit" class="btn-primary" id="uploadButton">
-            Upload ke Google Drive
-          </button>
+        <div class="hero-stats">
+          <div class="stat-box">
+            <strong>PDF / Excel</strong>
+            <span>Format dokumen yang didukung</span>
+          </div>
 
-          <button type="button" class="btn-secondary" id="refreshButton">
-            Refresh Daftar Dokumen
-          </button>
+          <div class="stat-box">
+            <strong>Metadata</strong>
+            <span>Judul, intent, kategori, dan keywords</span>
+          </div>
 
-          <button type="button" class="btn-secondary" onclick="window.location.href='/'">
-            Kembali ke Beranda
-          </button>
+          <div class="stat-box">
+            <strong>Drive</strong>
+            <span>Dokumen tersimpan di Google Drive</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="admin-main">
+    <div class="container admin-stack">
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <h2>Upload Dokumen</h2>
+            <p>Tambahkan dokumen baru sebagai knowledge base chatbot.</p>
+          </div>
+
+          <div class="card-icon">📤</div>
         </div>
 
-        <div id="messageBox" class="alert"></div>
-      </form>
-    </section>
+        <div class="card-body">
+          <div class="note">
+            Dokumen akan disimpan ke Google Drive. Metadata dokumen akan disimpan
+            ke file <b>documents-metadata.json</b> di folder Google Drive yang sama.
+          </div>
 
-    <section class="card">
-      <h2>Daftar Dokumen Google Drive</h2>
-      <div id="documentsList" class="documents">
-        <div class="empty">Memuat daftar dokumen...</div>
-      </div>
-    </section>
+          <form id="uploadForm">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="pin">PIN Admin</label>
+                <input
+                  type="password"
+                  id="pin"
+                  name="pin"
+                  placeholder="Masukkan PIN admin"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="document">File Dokumen</label>
+                <input
+                  type="file"
+                  id="document"
+                  name="document"
+                  accept=".pdf,.xlsx,.xls"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="title">Judul Dokumen</label>
+                <input
+                  type="text"
+                  id="title"
+                  name="title"
+                  placeholder="Contoh: Tutorial Pengajuan Surat KP"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="intent">Intent</label>
+                <input
+                  type="text"
+                  id="intent"
+                  name="intent"
+                  placeholder="Contoh: surat_kp"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="category">Kategori</label>
+                <input
+                  type="text"
+                  id="category"
+                  name="category"
+                  placeholder="Contoh: Surat Pengantar KP/Magang"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="link">Link Tambahan</label>
+                <input
+                  type="url"
+                  id="link"
+                  name="link"
+                  placeholder="Opsional"
+                />
+              </div>
+
+              <div class="form-group full">
+                <label for="keywords">Keywords</label>
+                <textarea
+                  id="keywords"
+                  name="keywords"
+                  placeholder="Pisahkan dengan koma. Contoh: kerja praktik, kp, magang, toss, surat pengantar kp"
+                  required
+                ></textarea>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button type="submit" class="btn btn-primary" id="uploadButton">
+                Upload ke Google Drive
+              </button>
+
+              <button type="button" class="btn btn-soft" id="resetButton">
+                Reset Form
+              </button>
+            </div>
+
+            <div id="messageBox" class="alert"></div>
+          </form>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <h2>Daftar Dokumen</h2>
+            <p>Dokumen yang sudah tersimpan di Google Drive.</p>
+          </div>
+
+          <div class="card-icon">📚</div>
+        </div>
+
+        <div class="card-body">
+          <div class="documents-toolbar">
+            <input
+              type="text"
+              id="searchDocument"
+              class="search-input"
+              placeholder="Cari dokumen, intent, kategori, atau keyword..."
+            />
+
+            <button type="button" class="btn btn-outline" id="refreshButton">
+              Refresh
+            </button>
+          </div>
+
+          <div id="documentsList" class="documents">
+            <div class="empty">Memuat daftar dokumen...</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="container">
+      <p class="footer-note">
+        Admin LAA Akademik Bot · Telkom University Surabaya
+      </p>
+    </div>
   </main>
 
   <script>
     const uploadForm = document.getElementById("uploadForm");
     const uploadButton = document.getElementById("uploadButton");
     const refreshButton = document.getElementById("refreshButton");
+    const resetButton = document.getElementById("resetButton");
     const messageBox = document.getElementById("messageBox");
     const documentsList = document.getElementById("documentsList");
+    const searchDocument = document.getElementById("searchDocument");
+
+    let cachedDocuments = [];
 
     function showMessage(type, message) {
       messageBox.className = `alert ${type}`;
@@ -421,21 +262,112 @@
       }
     }
 
-    async function readJsonSafely(response) {
-      const contentType = response.headers.get("content-type") || "";
-      const text = await response.text();
+    function getFileTypeLabel(doc) {
+      const type = String(doc.type || "").toLowerCase();
+      const fileName = String(doc.originalName || doc.fileName || "").toLowerCase();
 
-      if (!contentType.includes("application/json")) {
-        throw new Error(
-          "API tidak mengembalikan JSON. Kemungkinan route API belum tersedia atau server mengembalikan halaman HTML/error page."
-        );
+      if (type.includes("pdf") || fileName.endsWith(".pdf")) {
+        return "PDF";
       }
 
-      try {
-        return JSON.parse(text);
-      } catch (error) {
-        throw new Error("Response API bukan JSON valid.");
+      if (
+        type.includes("excel") ||
+        fileName.endsWith(".xlsx") ||
+        fileName.endsWith(".xls")
+      ) {
+        return "Excel";
       }
+
+      return doc.type || "Dokumen";
+    }
+
+    function renderDocuments(documents) {
+      if (!documents.length) {
+        documentsList.innerHTML = `
+          <div class="empty">
+            Belum ada dokumen yang cocok atau belum ada dokumen yang di-upload.
+          </div>
+        `;
+        return;
+      }
+
+      documentsList.innerHTML = documents
+        .map((doc) => {
+          const keywords = Array.isArray(doc.keywords)
+            ? doc.keywords.join(", ")
+            : doc.keywords || "-";
+
+          const driveLink = doc.driveViewLink || doc.link || "#";
+          const typeLabel = getFileTypeLabel(doc);
+          const documentId = doc.id || "";
+
+          return `
+            <div class="document-item">
+              <div class="document-top">
+                <h3>${escapeHtml(doc.title || "Tanpa Judul")}</h3>
+                <span class="doc-badge">${escapeHtml(typeLabel)}</span>
+              </div>
+
+              <div class="document-meta">
+                <div><b>File:</b> ${escapeHtml(doc.originalName || doc.fileName || "-")}</div>
+                <div><b>Intent:</b> ${escapeHtml(doc.intent || "-")}</div>
+                <div><b>Kategori:</b> ${escapeHtml(doc.category || "-")}</div>
+                <div><b>Keywords:</b> ${escapeHtml(keywords)}</div>
+                <div><b>Upload:</b> ${escapeHtml(formatDate(doc.uploadedAt))}</div>
+              </div>
+
+              <div class="document-actions">
+                ${
+                  driveLink && driveLink !== "#"
+                    ? `<a class="document-link" href="${escapeHtml(driveLink)}" target="_blank" rel="noopener noreferrer">Buka di Google Drive →</a>`
+                    : `<span></span>`
+                }
+
+                <button
+                  type="button"
+                  class="delete-document-btn"
+                  data-id="${escapeHtml(documentId)}"
+                  data-title="${escapeHtml(doc.title || doc.originalName || "Dokumen")}"
+                  ${documentId ? "" : "disabled"}
+                >
+                  Hapus Dokumen
+                </button>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    function filterDocuments() {
+      const keyword = String(searchDocument.value || "").toLowerCase().trim();
+
+      if (!keyword) {
+        renderDocuments(cachedDocuments);
+        return;
+      }
+
+      const filtered = cachedDocuments.filter((doc) => {
+        const keywords = Array.isArray(doc.keywords)
+          ? doc.keywords.join(" ")
+          : doc.keywords || "";
+
+        const searchable = [
+          doc.title,
+          doc.originalName,
+          doc.fileName,
+          doc.intent,
+          doc.category,
+          doc.type,
+          keywords
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return searchable.includes(keyword);
+      });
+
+      renderDocuments(filtered);
     }
 
     async function loadDocuments() {
@@ -443,55 +375,63 @@
 
       try {
         const response = await fetch("/api/drive-documents");
-        const data = await readJsonSafely(response);
+        const data = await response.json();
 
         if (!response.ok || !data.success) {
           throw new Error(data.message || "Gagal mengambil daftar dokumen.");
         }
 
-        const documents = data.documents || [];
-
-        if (!documents.length) {
-          documentsList.innerHTML = `<div class="empty">Belum ada dokumen yang di-upload ke Google Drive.</div>`;
-          return;
-        }
-
-        documentsList.innerHTML = documents
-          .map((doc) => {
-            const keywords = Array.isArray(doc.keywords)
-              ? doc.keywords.join(", ")
-              : doc.keywords || "-";
-
-            const driveLink = doc.driveViewLink || doc.link || "#";
-
-            return `
-              <div class="document-item">
-                <h3>${escapeHtml(doc.title)}</h3>
-                <div class="document-meta">
-                  <div><b>File:</b> ${escapeHtml(doc.originalName || doc.fileName)}</div>
-                  <div><b>Intent:</b> ${escapeHtml(doc.intent)}</div>
-                  <div><b>Kategori:</b> ${escapeHtml(doc.category)}</div>
-                  <div><b>Tipe:</b> ${escapeHtml(doc.type)}</div>
-                  <div><b>Keywords:</b> ${escapeHtml(keywords)}</div>
-                  <div><b>Upload:</b> ${escapeHtml(formatDate(doc.uploadedAt))}</div>
-                </div>
-                ${
-                  driveLink && driveLink !== "#"
-                    ? `<a class="document-link" href="${escapeHtml(driveLink)}" target="_blank" rel="noopener noreferrer">Buka di Google Drive</a>`
-                    : ""
-                }
-              </div>
-            `;
-          })
-          .join("");
+        cachedDocuments = data.documents || [];
+        filterDocuments();
       } catch (error) {
         documentsList.innerHTML = `
           <div class="empty">
             Gagal memuat daftar dokumen.<br />
-            ${escapeHtml(error.message)}<br /><br />
-            Pastikan endpoint <b>/api/drive-documents</b> sudah tersedia dan environment Google Drive sudah benar.
+            ${escapeHtml(error.message)}
           </div>
         `;
+      }
+    }
+
+    async function deleteDocument(documentId, title) {
+      if (!documentId) {
+        showMessage("error", "ID dokumen tidak ditemukan. Dokumen tidak bisa dihapus.");
+        return;
+      }
+
+      const pin = prompt(`Masukkan PIN admin untuk menghapus dokumen:\n\n${title}`);
+
+      if (!pin) {
+        return;
+      }
+
+      const confirmDelete = confirm(
+        `Yakin ingin menghapus dokumen ini?\n\n${title}\n\nDokumen akan dihapus dari metadata dan Google Drive.`
+      );
+
+      if (!confirmDelete) {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/drive-documents/${encodeURIComponent(documentId)}?pin=${encodeURIComponent(pin)}`,
+          {
+            method: "DELETE"
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Gagal menghapus dokumen.");
+        }
+
+        showMessage("success", data.message || "Dokumen berhasil dihapus.");
+
+        await loadDocuments();
+      } catch (error) {
+        showMessage("error", error.message);
       }
     }
 
@@ -510,7 +450,7 @@
           body: formData
         });
 
-        const data = await readJsonSafely(response);
+        const data = await response.json();
 
         if (!response.ok || !data.success) {
           throw new Error(data.message || data.error || "Upload gagal.");
@@ -531,7 +471,27 @@
       }
     });
 
+    documentsList.addEventListener("click", function (event) {
+      const deleteButton = event.target.closest(".delete-document-btn");
+
+      if (!deleteButton || deleteButton.disabled) {
+        return;
+      }
+
+      const documentId = deleteButton.getAttribute("data-id");
+      const title = deleteButton.getAttribute("data-title");
+
+      deleteDocument(documentId, title);
+    });
+
     refreshButton.addEventListener("click", loadDocuments);
+
+    resetButton.addEventListener("click", function () {
+      uploadForm.reset();
+      clearMessage();
+    });
+
+    searchDocument.addEventListener("input", filterDocuments);
 
     loadDocuments();
   </script>

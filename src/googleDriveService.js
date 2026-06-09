@@ -75,6 +75,45 @@ async function uploadFileToDrive({ buffer, originalName, mimeType }) {
   };
 }
 
+async function downloadFileFromDrive(fileId) {
+  if (!fileId) {
+    throw new Error("driveFileId tidak tersedia.");
+  }
+
+  const drive = getDriveClient();
+
+  const response = await drive.files.get(
+    {
+      fileId,
+      alt: "media"
+    },
+    {
+      responseType: "arraybuffer"
+    }
+  );
+
+  return Buffer.from(response.data);
+}
+
+async function deleteFileFromDrive(fileId) {
+  if (!fileId) {
+    return false;
+  }
+
+  const drive = getDriveClient();
+
+  try {
+    await drive.files.delete({
+      fileId
+    });
+
+    return true;
+  } catch (error) {
+    console.error("Delete Drive File Error:", error.message);
+    return false;
+  }
+}
+
 async function findJsonFile(fileName) {
   const drive = getDriveClient();
   const folderId = getDriveFolderId();
@@ -214,6 +253,12 @@ async function addDriveDocumentMetadata(metadata) {
   return newDocument;
 }
 
+async function getDriveDocumentById(documentId) {
+  const documents = await readDriveDocuments();
+
+  return documents.find((doc) => doc.id === documentId) || null;
+}
+
 async function deleteDriveDocumentMetadata(documentId) {
   const documents = await readDriveDocuments();
   const filteredDocuments = documents.filter((doc) => doc.id !== documentId);
@@ -225,8 +270,12 @@ async function deleteDriveDocumentMetadata(documentId) {
 
 module.exports = {
   uploadFileToDrive,
+  downloadFileFromDrive,
+  deleteFileFromDrive,
   readDriveDocuments,
+  saveDriveDocuments,
   addDriveDocumentMetadata,
+  getDriveDocumentById,
   deleteDriveDocumentMetadata,
   readJsonFromDrive,
   saveJsonToDrive

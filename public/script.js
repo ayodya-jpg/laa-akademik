@@ -1,162 +1,102 @@
-const dashboardPage = document.getElementById("dashboardPage");
-const chatPage = document.getElementById("chatPage");
-
-const openChatTop = document.getElementById("openChatTop");
-const openChatHero = document.getElementById("openChatHero");
-const backDashboard = document.getElementById("backDashboard");
+const menuToggle = document.getElementById("menuToggle");
+const mobileMenu = document.getElementById("mobileMenu");
 
 const chatForm = document.getElementById("chatForm");
 const userInput = document.getElementById("userInput");
-const chatBox = document.getElementById("chatBox");
+const sendButton = document.getElementById("sendButton");
+const chatMessages = document.getElementById("chatMessages");
 
-const clickableButtons = document.querySelectorAll(
-  ".service-item, .suggestion-row button, .service-card"
-);
+const quickQuestionButtons = document.querySelectorAll(".quick-question-btn");
 
-let hasOpenedChat = false;
-
-function openChat(initialMessage = null) {
-  dashboardPage.classList.add("hidden");
-  chatPage.classList.remove("hidden");
-  document.body.style.overflow = "hidden";
-
-  if (!hasOpenedChat) {
-    createMessage(
-`Halo! 👋
-Selamat datang di LAA Akademik Bot.
-
-Saya siap membantu informasi seputar:
-• Kalender akademik
-• Registrasi, perwalian, dan PRS
-• SKS, IPS, IPK, dan nilai
-• Tugas akhir / skripsi
-• Yudisium dan wisuda
-• Data dosen
-• Jadwal kuliah
-
-Silakan pilih layanan di sebelah kiri, gunakan tombol cepat, atau langsung tulis pertanyaan kamu.`,
-      "bot"
-    );
-
-    createInlineMenu();
-    hasOpenedChat = true;
-  }
-
-  if (initialMessage) {
-    setTimeout(() => sendMessage(initialMessage), 250);
-  }
-}
-
-function goDashboard() {
-  chatPage.classList.add("hidden");
-  dashboardPage.classList.remove("hidden");
-  document.body.style.overflow = "auto";
-}
-
-function getCurrentTime() {
-  return new Date().toLocaleTimeString("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit"
+if (menuToggle && mobileMenu) {
+  menuToggle.addEventListener("click", function () {
+    mobileMenu.classList.toggle("active");
   });
 }
 
-function createMessage(text, sender = "bot") {
-  const row = document.createElement("div");
-  row.className = `message-row ${sender}`;
-
-  const bubble = document.createElement("div");
-  bubble.className = "message-bubble";
-  bubble.textContent = text;
-
-  const meta = document.createElement("div");
-  meta.className = "message-meta";
-
-  if (sender === "user") {
-    meta.textContent = `Anda • ${getCurrentTime()}`;
-  } else if (sender === "loading") {
-    meta.textContent = "LAA Akademik Bot sedang mencari informasi...";
-  } else {
-    meta.textContent = `LAA Akademik Bot • ${getCurrentTime()}`;
-  }
-
-  row.appendChild(bubble);
-  row.appendChild(meta);
-
-  chatBox.appendChild(row);
-  chatBox.scrollTop = chatBox.scrollHeight;
-
-  return row;
+function escapeHtml(text) {
+  return String(text || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-function createTypingMessage() {
-  const row = document.createElement("div");
-  row.className = "message-row loading";
+function addMessage(sender, text) {
+  if (!chatMessages) return;
+
+  const messageWrapper = document.createElement("div");
+  messageWrapper.className =
+    sender === "user" ? "message user-message" : "message bot-message";
 
   const bubble = document.createElement("div");
   bubble.className = "message-bubble";
+  bubble.innerHTML = escapeHtml(text).replace(/\n/g, "<br>");
 
+  messageWrapper.appendChild(bubble);
+  chatMessages.appendChild(messageWrapper);
+
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function addTypingIndicator() {
+  if (!chatMessages) return null;
+
+  const typingId = `typing-${Date.now()}`;
+
+  const messageWrapper = document.createElement("div");
+  messageWrapper.className = "message bot-message";
+  messageWrapper.id = typingId;
+
+  const bubble = document.createElement("div");
+  bubble.className = "message-bubble typing-bubble";
   bubble.innerHTML = `
-    <div class="typing-dots">
-      <span></span>
-      <span></span>
-      <span></span>
-    </div>
+    <span class="typing-dot"></span>
+    <span class="typing-dot"></span>
+    <span class="typing-dot"></span>
   `;
 
-  const meta = document.createElement("div");
-  meta.className = "message-meta";
-  meta.textContent = "LAA Akademik Bot sedang mengetik...";
+  messageWrapper.appendChild(bubble);
+  chatMessages.appendChild(messageWrapper);
 
-  row.appendChild(bubble);
-  row.appendChild(meta);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
 
-  chatBox.appendChild(row);
-  chatBox.scrollTop = chatBox.scrollHeight;
-
-  return row;
+  return typingId;
 }
 
-function createInlineMenu() {
-  const wrapper = document.createElement("div");
-  wrapper.className = "inline-menu";
+function removeTypingIndicator(id) {
+  if (!id) return;
 
-  const menus = [
-    ["Kalender Akademik", "1"],
-    ["Pedoman Akademik", "2"],
-    ["SKS / IPS / IPK", "3"],
-    ["Tugas Akhir", "4"],
-    ["Yudisium / Wisuda", "5"],
-    ["Data Dosen", "6"],
-    ["Jadwal Kuliah", "7"]
-  ];
+  const element = document.getElementById(id);
 
-  menus.forEach(([label, value]) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.textContent = label;
-
-    btn.addEventListener("click", () => {
-      sendMessage(value);
-    });
-
-    wrapper.appendChild(btn);
-  });
-
-  chatBox.appendChild(wrapper);
-  chatBox.scrollTop = chatBox.scrollHeight;
+  if (element) {
+    element.remove();
+  }
 }
 
-async function sendMessage(message) {
-  const cleanMessage = String(message || "").trim();
+function setLoading(isLoading) {
+  if (!sendButton || !userInput) return;
 
-  if (!cleanMessage) {
-    return;
+  sendButton.disabled = isLoading;
+  userInput.disabled = isLoading;
+  sendButton.textContent = isLoading ? "..." : "Kirim";
+}
+
+async function sendMessage(messageText) {
+  const message = String(messageText || userInput?.value || "").trim();
+
+  if (!message) return;
+
+  addMessage("user", message);
+
+  if (userInput) {
+    userInput.value = "";
   }
 
-  createMessage(cleanMessage, "user");
-  userInput.value = "";
+  setLoading(true);
 
-  const loadingRow = createTypingMessage();
+  const typingId = addTypingIndicator();
 
   try {
     const response = await fetch("/api/chat", {
@@ -165,63 +105,68 @@ async function sendMessage(message) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        message: cleanMessage
+        message
       })
     });
 
-    const data = await response.json();
+    let data = {};
 
-    loadingRow.remove();
-
-    if (data.success) {
-      createMessage(data.answer, "bot");
-
-      const lower = cleanMessage.toLowerCase();
-
-      if (
-        lower === "menu" ||
-        lower === "halo" ||
-        lower === "hai" ||
-        lower === "hallo" ||
-        lower === "hello"
-      ) {
-        createInlineMenu();
-      }
-    } else {
-      createMessage(
-        data.answer || "Maaf, terjadi kendala saat memproses pesan.",
-        "bot"
-      );
+    try {
+      data = await response.json();
+    } catch (error) {
+      data = {};
     }
-  } catch (error) {
-    console.error("Fetch Error:", error);
 
-    loadingRow.remove();
+    removeTypingIndicator(typingId);
 
-    createMessage(
-      "Tidak dapat terhubung ke server. Pastikan server sudah berjalan dengan benar.",
-      "bot"
+    if (!response.ok) {
+      addMessage(
+        "bot",
+        data.answer ||
+          data.message ||
+          "Maaf, terjadi kendala pada server chatbot."
+      );
+      return;
+    }
+
+    addMessage(
+      "bot",
+      data.answer ||
+        data.response ||
+        data.message ||
+        "Maaf, aku belum bisa menjawab pertanyaan tersebut."
     );
+  } catch (error) {
+    removeTypingIndicator(typingId);
+
+    console.error("Chat Error:", error);
+
+    addMessage(
+      "bot",
+      "Maaf, chatbot belum dapat terhubung ke server. Pastikan server backend sudah berjalan."
+    );
+  } finally {
+    setLoading(false);
+
+    if (userInput) {
+      userInput.focus();
+    }
   }
 }
 
-openChatTop.addEventListener("click", () => openChat());
-openChatHero.addEventListener("click", () => openChat());
-backDashboard.addEventListener("click", goDashboard);
+if (chatForm) {
+  chatForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    sendMessage();
+  });
+}
 
-chatForm.addEventListener("submit", function (event) {
-  event.preventDefault();
-  sendMessage(userInput.value);
-});
-
-clickableButtons.forEach((button) => {
+quickQuestionButtons.forEach((button) => {
   button.addEventListener("click", function () {
-    const message = button.getAttribute("data-message");
+    const question = button.getAttribute("data-question");
 
-    if (dashboardPage && !dashboardPage.classList.contains("hidden")) {
-      openChat(message);
-    } else {
-      sendMessage(message);
+    if (question) {
+      sendMessage(question);
     }
   });
 });

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>LAA Akademik Bot - Chatbot</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="/chat.css" />
+</head>
+
+<body>
+  <div class="chat-app">
+    <aside class="sidebar">
+      <div class="sidebar-badge">LAA • SSC</div>
+
+      <h1 class="sidebar-title">LAA Akademik Bot</h1>
+
+      <p class="sidebar-subtitle">
+        Asisten digital layanan akademik Telkom University Surabaya.
+      </p>
+
+      <a href="/" class="back-home">← Kembali ke Beranda</a>
+
+      <h2 class="sidebar-section-title">Layanan Cepat</h2>
+
+      <div class="quick-menu">
+        <button
+          type="button"
+          class="sidebar-menu-btn quick-question-btn active"
+          data-question="kalender akademik"
+        >
+          <span class="sidebar-menu-icon">🗓️</span>
+          <span>Kalender Akademik</span>
+        </button>
+
+        <button
+          type="button"
+          class="sidebar-menu-btn quick-question-btn"
+          data-question="pedoman akademik"
+        >
+          <span class="sidebar-menu-icon">📘</span>
+          <span>Pedoman Akademik</span>
+        </button>
+
+        <button
+          type="button"
+          class="sidebar-menu-btn quick-question-btn"
+          data-question="aturan SKS dan nilai"
+        >
+          <span class="sidebar-menu-icon">🎓</span>
+          <span>SKS & Nilai</span>
+        </button>
+
+        <button
+          type="button"
+          class="sidebar-menu-btn quick-question-btn"
+          data-question="syarat pendaftaran sidang TA"
+        >
+          <span class="sidebar-menu-icon">📄</span>
+          <span>Sidang TA</span>
+        </button>
+
+        <button
+          type="button"
+          class="sidebar-menu-btn quick-question-btn"
+          data-question="informasi kerja praktik"
+        >
+          <span class="sidebar-menu-icon">💼</span>
+          <span>Kerja Praktik</span>
+        </button>
+
+        <button
+          type="button"
+          class="sidebar-menu-btn quick-question-btn"
+          data-question="data dosen"
+        >
+          <span class="sidebar-menu-icon">👨‍🏫</span>
+          <span>Data Dosen</span>
+        </button>
+      </div>
+
+      <div class="customer-service-card">
+        <h3>Customer Service</h3>
+        <p>Butuh bantuan dari CS akademik?</p>
+
+        <a
+          href="https://wa.me/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="whatsapp-button"
+        >
+          WhatsApp CS
+        </a>
+      </div>
+    </aside>
+
+    <main class="chat-panel">
+      <header class="chat-header">
+        <div class="chatbot-identity">
+          <div class="bot-avatar">
+            <img src="/images/logo-telyu.png" alt="Logo Bot" />
+          </div>
+
+          <div class="chatbot-title">
+            <strong>LAA Akademik Bot</strong>
+            <span>Student Service Center • Layanan Akademik</span>
+          </div>
+        </div>
+
+        <div class="online-badge">
+          <span class="online-dot"></span>
+          Online
+        </div>
+      </header>
+
+      <section class="chat-chip-row">
+        <button type="button" class="quick-question-btn" data-question="menu">
+          Menu
+        </button>
+
+        <button type="button" class="quick-question-btn" data-question="registrasi">
+          Registrasi
+        </button>
+
+        <button type="button" class="quick-question-btn" data-question="jadwal PRS">
+          PRS
+        </button>
+
+        <button type="button" class="quick-question-btn" data-question="aturan maksimal SKS">
+          SKS
+        </button>
+
+        <button type="button" class="quick-question-btn" data-question="syarat pendaftaran sidang TA">
+          Sidang TA
+        </button>
+
+        <button type="button" class="quick-question-btn" data-question="informasi kerja praktik">
+          Kerja Praktik
+        </button>
+
+        <button type="button" class="quick-question-btn" data-question="data dosen">
+          Data Dosen
+        </button>
+      </section>
+
+      <section class="chat-area" id="chatMessages">
+        <div class="message bot-message">
+          <div class="message-block">
+            <div class="message-bubble">
+              Halo! 👋 Saya LAA Akademik Bot. Silakan tanyakan informasi akademik
+              yang kamu butuhkan.
+            </div>
+            <div class="message-label">LAA Akademik Bot</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chat-input-wrapper">
+        <form id="chatForm" class="chat-input-form">
+          <input
+            type="text"
+            id="userInput"
+            placeholder="Tulis pertanyaan kamu di sini..."
+            autocomplete="off"
+            required
+          />
+
+          <button type="submit" id="sendButton">Kirim</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>
