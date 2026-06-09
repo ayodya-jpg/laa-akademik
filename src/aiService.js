@@ -13,6 +13,19 @@ function cleanText(text) {
     .trim();
 }
 
+function normalizeSimpleText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[-_/]/g, " ")
+    .replace(/[^\w\s.]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/* =========================
+   LECTURER DATA FORMAT
+========================= */
+
 function extractLecturerData(context) {
   const text = String(context || "");
 
@@ -37,6 +50,109 @@ function extractLecturerData(context) {
   };
 }
 
+function extractUpdateBlocks(context) {
+  const text = String(context || "");
+
+  const blocks = text
+    .split(/Update terbaru\s+\d+/i)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  return blocks
+    .map((block) => {
+      const topicMatch = block.match(/Topik:\s*([^\n]+)/i);
+      const valueMatch = block.match(/Nilai terbaru:\s*([^\n]+)/i);
+      const dateMatch = block.match(/Tanggal update:\s*([^\n]+)/i);
+      const originalMatch = block.match(/Perintah asli:\s*([^\n]+)/i);
+
+      return {
+        topic: topicMatch ? topicMatch[1].trim() : "",
+        value: valueMatch ? valueMatch[1].trim() : "",
+        date: dateMatch ? dateMatch[1].trim() : "",
+        original: originalMatch ? originalMatch[1].trim() : ""
+      };
+    })
+    .filter((item) => item.topic || item.value || item.original);
+}
+
+function getLatestUpdateValue(context, fieldKeywords = []) {
+  const updates = extractUpdateBlocks(context);
+
+  if (!updates.length) {
+    return "";
+  }
+
+  const normalizedKeywords = fieldKeywords.map((item) =>
+    normalizeSimpleText(item)
+  );
+
+  const matchedUpdate = updates.find((item) => {
+    const combined = normalizeSimpleText(
+      `${item.topic} ${item.value} ${item.original}`
+    );
+
+    return normalizedKeywords.some((keyword) => combined.includes(keyword));
+  });
+
+  return matchedUpdate ? matchedUpdate.value : "";
+}
+
+function applyLecturerUpdates(lecturer, context) {
+  if (!lecturer) {
+    return null;
+  }
+
+  const updatedLecturer = { ...lecturer };
+
+  const updatedNip = getLatestUpdateValue(context, [
+    "nip",
+    "nip ypt",
+    "nip dosen"
+  ]);
+
+  const updatedKodeDosen = getLatestUpdateValue(context, [
+    "kode dosen",
+    "kode dosen baru"
+  ]);
+
+  const updatedStatus = getLatestUpdateValue(context, [
+    "status aktif",
+    "status dosen"
+  ]);
+
+  const updatedProdi = getLatestUpdateValue(context, [
+    "prodi",
+    "program studi"
+  ]);
+
+  const updatedNamaGelar = getLatestUpdateValue(context, [
+    "nama gelar",
+    "gelar"
+  ]);
+
+  if (updatedNip) {
+    updatedLecturer.nip = updatedNip;
+  }
+
+  if (updatedKodeDosen) {
+    updatedLecturer.kode = updatedKodeDosen;
+  }
+
+  if (updatedStatus) {
+    updatedLecturer.status = updatedStatus;
+  }
+
+  if (updatedProdi) {
+    updatedLecturer.prodi = updatedProdi;
+  }
+
+  if (updatedNamaGelar) {
+    updatedLecturer.gelar = updatedNamaGelar;
+  }
+
+  return updatedLecturer;
+}
+
 function buildLecturerFallbackAnswer(context) {
   const lecturer = extractLecturerData(context);
 
@@ -44,34 +160,53 @@ function buildLecturerFallbackAnswer(context) {
     return null;
   }
 
+  const updatedLecturer = applyLecturerUpdates(lecturer, context);
+
   let answer = "Informasi dosen yang tersedia adalah:\n\n";
 
-  if (lecturer.nama) {
-    answer += `- Nama: ${lecturer.nama}\n`;
+  if (updatedLecturer.nama) {
+    answer += `- Nama: ${updatedLecturer.nama}\n`;
   }
 
-  if (lecturer.status) {
-    answer += `- Status Aktif: ${lecturer.status}\n`;
+  if (updatedLecturer.status) {
+    answer += `- Status Aktif: ${updatedLecturer.status}\n`;
   }
 
-  if (lecturer.prodi) {
-    answer += `- Prodi: ${lecturer.prodi}\n`;
+  if (updatedLecturer.prodi) {
+    answer += `- Prodi: ${updatedLecturer.prodi}\n`;
   }
 
-  if (lecturer.nip) {
-    answer += `- NIP YPT: ${lecturer.nip}\n`;
+  if (updatedLecturer.nip) {
+    answer += `- NIP YPT: ${updatedLecturer.nip}\n`;
   }
 
-  if (lecturer.gelar) {
-    answer += `- Nama Gelar: ${lecturer.gelar}\n`;
+  if (updatedLecturer.gelar) {
+    answer += `- Nama Gelar: ${updatedLecturer.gelar}\n`;
   }
 
-  if (lecturer.kode) {
-    answer += `- Kode Dosen Baru: ${lecturer.kode}\n`;
+  if (updatedLecturer.kode) {
+    answer += `- Kode Dosen Baru: ${updatedLecturer.kode}\n`;
   }
 
   return answer.trim();
 }
+
+function isLecturerQuestion(question) {
+  const questionType = getQuestionType(question);
+  const normalizedQuestion = normalizeSimpleText(question);
+
+  return (
+    questionType === "lecturer" ||
+    normalizedQuestion.includes("dosen") ||
+    normalizedQuestion.includes("nip") ||
+    normalizedQuestion.includes("nip ypt") ||
+    normalizedQuestion.includes("kode dosen")
+  );
+}
+
+/* =========================
+   PROCEDURE FORMAT
+========================= */
 
 function buildProcedureFallbackAnswer(context, sourceTitle) {
   const cleanContext = cleanText(context);
@@ -102,14 +237,9 @@ function buildProcedureFallbackAnswer(context, sourceTitle) {
 
 function buildFallbackAnswer(question, context, sourceTitle) {
   const questionType = getQuestionType(question);
-  const normalizedQuestion = String(question || "").toLowerCase();
+  const normalizedQuestion = normalizeSimpleText(question);
 
-  if (
-    questionType === "lecturer" ||
-    normalizedQuestion.includes("dosen") ||
-    normalizedQuestion.includes("nip") ||
-    normalizedQuestion.includes("kode dosen")
-  ) {
+  if (isLecturerQuestion(question)) {
     const lecturerAnswer = buildLecturerFallbackAnswer(context);
 
     if (lecturerAnswer) {
@@ -138,6 +268,10 @@ ${shortContext}
 
 Jika informasi ini belum cukup jelas, kamu bisa menghubungi Customer Service LAA Akademik.`;
 }
+
+/* =========================
+   GROQ HELPER
+========================= */
 
 function isRateLimitError(error) {
   const message =
@@ -223,17 +357,34 @@ Cara menjawab:
 }
 
 async function askGroq(question, context, sourceTitle, options = {}) {
-  if (
-    !process.env.GROQ_API_KEY ||
-    process.env.GROQ_API_KEY === "isi_api_key_groq_kamu"
-  ) {
-    return buildFallbackAnswer(question, context, sourceTitle);
-  }
-
   const trimmedContext = String(context || "").slice(
     0,
     chatbotConfig.groq.contextLimit
   );
+
+  /*
+    Penting:
+    Untuk data dosen, jawaban dibuat deterministic agar formatnya selalu sama.
+    Jika ada update admin, value update akan menimpa data lama dari dokumen.
+    Contoh:
+    Data Dosen 2026: NIP 22960061
+    Database Update Chatbot: NIP 22960064
+    Output: tetap format data dosen, tetapi NIP menjadi 22960064.
+  */
+  if (isLecturerQuestion(question)) {
+    const lecturerAnswer = buildLecturerFallbackAnswer(trimmedContext);
+
+    if (lecturerAnswer) {
+      return lecturerAnswer;
+    }
+  }
+
+  if (
+    !process.env.GROQ_API_KEY ||
+    process.env.GROQ_API_KEY === "isi_api_key_groq_kamu"
+  ) {
+    return buildFallbackAnswer(question, trimmedContext, sourceTitle);
+  }
 
   const rulesText = chatbotConfig.rules.map((rule) => `- ${rule}`).join("\n");
   const answerStyle = getAnswerStyleInstruction(question);
