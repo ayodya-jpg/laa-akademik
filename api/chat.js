@@ -1,25 +1,16 @@
 const { loadDocuments } = require("../src/documentService");
 const { processChat } = require("../src/chatService");
 
-let isLoaded = false;
-
-async function ensureLoaded() {
-  if (!isLoaded) {
-    await loadDocuments();
-    isLoaded = true;
-  }
-}
-
 module.exports = async function handler(req, res) {
   try {
     if (req.method !== "POST") {
       return res.status(405).json({
         success: false,
-        answer: "Method tidak diizinkan. Gunakan method POST."
+        answer: "Method tidak diizinkan. Gunakan POST."
       });
     }
 
-    await ensureLoaded();
+    await loadDocuments();
 
     const { message } = req.body || {};
 
