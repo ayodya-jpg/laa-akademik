@@ -1,3 +1,4 @@
+const path = require("path");
 const pdfParse = require("pdf-parse");
 const XLSX = require("xlsx");
 
@@ -14,7 +15,6 @@ const { buildUpdateContext } = require("./updateService");
 const chatbotConfig = require("./config/chatbotConfig");
 
 let googleDriveService = null;
-let uploadDocumentService = null;
 
 try {
   googleDriveService = require("./googleDriveService");
@@ -22,28 +22,18 @@ try {
   googleDriveService = null;
 }
 
-try {
-  uploadDocumentService = require("./uploadDocumentService");
-} catch (error) {
-  uploadDocumentService = null;
-}
-
 let documentsCache = [];
 let registeredDocumentsCache = [];
-
-function hasGoogleDriveEnv() {
-  return Boolean(
-    process.env.GOOGLE_CLIENT_ID &&
-      process.env.GOOGLE_CLIENT_SECRET &&
-      process.env.GOOGLE_REFRESH_TOKEN &&
-      process.env.GOOGLE_DRIVE_FOLDER_ID
-  );
-}
 
 function splitIntoChunks(text, maxLength = chatbotConfig.retrieval.maxChunkLength) {
   const cleanedText = String(text || "")
     .replace(/\r/g, "\n")
-    .replace(/\n{3,}/g, "\n\n");
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  if (!cleanedText) {
+    return [];
+  }
 
   const blocks = cleanedText
     .split(/\n{2,}/)
@@ -81,244 +71,237 @@ function splitIntoChunks(text, maxLength = chatbotConfig.retrieval.maxChunkLengt
   return chunks;
 }
 
-function cleanValue(value) {
-  return String(value ?? "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+function normalizeArray(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
 
-function rowToNaturalText(row) {
-  const entries = Object.entries(row)
-    .map(([key, value]) => {
-      const cleanKey = cleanValue(key);
-      const cleanVal = cleanValue(value);
-
-      if (!cleanKey || !cleanVal) {
-        return null;
-      }
-
-      return `${cleanKey}: ${cleanVal}`;
-    })
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
     .filter(Boolean);
-
-  return entries.join("; ");
 }
 
-async function readPdfFromBuffer(buffer) {
-  try {
-    const data = await pdfParse(buffer);
-    return data.text || "";
-  } catch (error) {
-    console.error("Read Drive PDF Error:", error.message);
+function buildMetadataText(document) {
+  return [
+    document.title,
+    document.fileName,
+    document.originalName,
+    document.intent,
+    document.category,
+    document.link,
+    document.driveViewLink,
+    normalizeArray(document.keywords).join(" ")
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+function getDocumentTitle(document) {
+  return (
+    document.title ||
+    document.originalName ||
+    document.fileName ||
+    "Dokumen Akademik"
+  );
+}
+
+function getDocumentSource(document) {
+  if (document.source === "google_drive" || document.driveFileId) {
+    return {
+      title: getDocumentTitle(document),
+      link: document.driveViewLink || document.link || ""
+    };
+  }
+
+  const source = getSource(document.fileName);
+
+  return {
+    title: source.title || getDocumentTitle(document),
+    link: source.link || document.link || ""
+  };
+}
+
+function buildLocalDocumentInfo(document) {
+  return {
+    ...document,
+    source: "local",
+    title: document.title || getSource(document.fileName).title || document.fileName,
+    originalName: document.originalName || document.fileName,
+    keywords: normalizeArray(document.keywords)
+  };
+}
+
+function buildDriveDocumentInfo(document) {
+  return {
+    ...document,
+    source: "google_drive",
+    title: document.title || document.originalName || document.fileName,
+    originalName: document.originalName || document.fileName,
+    type: document.type || detectFileType(document.originalName || document.fileName, ""),
+    intent: document.intent || "umum",
+    category: document.category || "Dokumen Akademik",
+    keywords: normalizeArray(document.keywords)
+  };
+}
+
+function detectFileType(fileName, mimeType) {
+  const lowerName = String(fileName || "").toLowerCase();
+  const lowerMime = String(mimeType || "").toLowerCase();
+
+  if (lowerName.endsWith(".pdf") || lowerMime.includes("pdf")) {
+    return "pdf";
+  }
+
+  if (
+    lowerName.endsWith(".xlsx") ||
+    lowerName.endsWith(".xls") ||
+    lowerMime.includes("spreadsheet") ||
+    lowerMime.includes("excel")
+  ) {
+    return "excel";
+  }
+
+  return "file";
+}
+
+async function extractDriveDocumentText(document) {
+  if (!googleDriveService || !googleDriveService.downloadFileFromDrive) {
     return "";
   }
-}
 
-function readExcelRowsFromBuffer(buffer, fileName) {
-  try {
+  if (!document.driveFileId) {
+    return "";
+  }
+
+  const buffer = await googleDriveService.downloadFileFromDrive(
+    document.driveFileId
+  );
+
+  if (!buffer || buffer.length === 0) {
+    return "";
+  }
+
+  const type = detectFileType(document.originalName || document.fileName, document.mimeType);
+
+  if (type === "pdf") {
+    const parsed = await pdfParse(buffer);
+    return parsed.text || "";
+  }
+
+  if (type === "excel") {
     const workbook = XLSX.read(buffer, {
       type: "buffer"
     });
 
-    const allRows = [];
+    const rowsText = [];
 
     workbook.SheetNames.forEach((sheetName) => {
       const sheet = workbook.Sheets[sheetName];
-
       const rows = XLSX.utils.sheet_to_json(sheet, {
         defval: "",
         raw: false
       });
 
       rows.forEach((row, index) => {
-        const text = rowToNaturalText(row);
+        const content = Object.entries(row)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join("; ");
 
-        if (text) {
-          allRows.push({
-            fileName,
-            sheetName,
-            rowNumber: index + 1,
-            content: `Sheet ${sheetName}, baris ${index + 1}. ${text}`
-          });
+        if (content.trim()) {
+          rowsText.push(`Sheet: ${sheetName}; Baris: ${index + 2}; ${content}`);
         }
       });
     });
 
-    return allRows;
-  } catch (error) {
-    console.error("Read Drive Excel Error:", error.message);
-    return [];
-  }
-}
-
-function getUploadedDocuments() {
-  if (!uploadDocumentService || !uploadDocumentService.readUploadedDocuments) {
-    return [];
+    return rowsText.join("\n");
   }
 
-  try {
-    return uploadDocumentService.readUploadedDocuments();
-  } catch (error) {
-    console.error("Load Local Uploaded Metadata Error:", error.message);
-    return [];
-  }
+  return "";
 }
 
-async function getDriveDocuments() {
-  if (!googleDriveService || !hasGoogleDriveEnv()) {
-    return [];
-  }
+async function loadLocalDocuments() {
+  for (const document of chatbotConfig.documents) {
+    const docInfo = buildLocalDocumentInfo(document);
+    registeredDocumentsCache.push(docInfo);
 
-  try {
-    const driveDocuments = await googleDriveService.readDriveDocuments();
-
-    if (!Array.isArray(driveDocuments)) {
-      return [];
-    }
-
-    return driveDocuments;
-  } catch (error) {
-    console.error("Load Drive Metadata Error:", error.message);
-    return [];
-  }
-}
-
-function buildSource(document) {
-  return {
-    title: document.title || document.originalName || document.fileName,
-    link: document.driveViewLink || document.link || ""
-  };
-}
-
-function normalizeKeywords(keywords) {
-  if (Array.isArray(keywords)) {
-    return keywords.map((item) => String(item).trim()).filter(Boolean);
-  }
-
-  return String(keywords || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function normalizeDocument(document) {
-  return {
-    fileName: document.fileName,
-    originalName: document.originalName || document.fileName,
-    title: document.title || document.originalName || document.fileName,
-    intent: document.intent || "umum",
-    type: document.type || "pdf",
-    category: document.category || "Dokumen Akademik",
-    link: document.link || "",
-    keywords: normalizeKeywords(document.keywords),
-    driveFileId: document.driveFileId || "",
-    driveViewLink: document.driveViewLink || "",
-    driveContentLink: document.driveContentLink || "",
-    uploadedAt: document.uploadedAt || "",
-    source: document.source || ""
-  };
-}
-
-async function loadLocalDocument(document) {
-  try {
-    if (document.type === "pdf") {
-      const pdfText = await readPdf(document.fileName);
+    if (docInfo.type === "pdf") {
+      const pdfText = await readPdf(docInfo.fileName);
 
       if (!pdfText || pdfText.trim().length === 0) {
-        console.warn(`PDF lokal kosong atau tidak terbaca: ${document.fileName}`);
-        return;
+        continue;
       }
 
       const chunks = splitIntoChunks(pdfText);
 
       chunks.forEach((chunk, index) => {
         documentsCache.push({
-          fileName: document.fileName,
-          type: document.type,
-          intent: document.intent,
+          fileName: docInfo.fileName,
+          type: docInfo.type,
+          intent: docInfo.intent,
           chunkId: index + 1,
-          source: buildSource(document),
+          sourceInfo: getDocumentSource(docInfo),
+          documentInfo: docInfo,
           content: chunk
         });
       });
-
-      return;
     }
 
-    if (document.type === "excel") {
-      const rows = readExcelRows(document.fileName);
+    if (docInfo.type === "excel") {
+      const rows = readExcelRows(docInfo.fileName);
 
       rows.forEach((row) => {
         documentsCache.push({
-          fileName: document.fileName,
-          type: document.type,
-          intent: document.intent,
+          fileName: docInfo.fileName,
+          type: docInfo.type,
+          intent: docInfo.intent,
           chunkId: row.rowNumber,
-          source: buildSource(document),
+          sourceInfo: getDocumentSource(docInfo),
+          documentInfo: docInfo,
           content: row.content
         });
       });
     }
-  } catch (error) {
-    console.error(`Load Local Document Error (${document.fileName}):`, error.message);
   }
 }
 
-async function loadDriveDocument(document) {
-  if (!googleDriveService || !googleDriveService.downloadFileFromDrive) {
+async function loadDriveDocuments() {
+  if (!googleDriveService || !googleDriveService.readDriveDocuments) {
     return;
   }
 
-  if (!document.driveFileId) {
-    console.warn(`Drive file ID tidak tersedia untuk: ${document.fileName}`);
-    return;
-  }
+  const driveDocuments = await googleDriveService.readDriveDocuments();
 
-  try {
-    const buffer = await googleDriveService.downloadFileFromDrive(
-      document.driveFileId
-    );
+  for (const rawDocument of driveDocuments || []) {
+    const docInfo = buildDriveDocumentInfo(rawDocument);
+    registeredDocumentsCache.push(docInfo);
 
-    if (document.type === "pdf") {
-      const pdfText = await readPdfFromBuffer(buffer);
+    try {
+      const text = await extractDriveDocumentText(docInfo);
 
-      if (!pdfText || pdfText.trim().length === 0) {
-        console.warn(`PDF Drive kosong atau tidak terbaca: ${document.fileName}`);
-        return;
+      if (!text || text.trim().length === 0) {
+        console.log("Drive document kosong / gagal dibaca:", docInfo.title);
+        continue;
       }
 
-      const chunks = splitIntoChunks(pdfText);
+      const chunks = splitIntoChunks(text);
 
       chunks.forEach((chunk, index) => {
         documentsCache.push({
-          fileName: document.fileName,
-          type: document.type,
-          intent: document.intent,
+          fileName: docInfo.fileName || docInfo.originalName,
+          type: docInfo.type,
+          intent: docInfo.intent,
           chunkId: index + 1,
-          source: buildSource(document),
+          sourceInfo: getDocumentSource(docInfo),
+          documentInfo: docInfo,
           content: chunk
         });
       });
 
-      return;
+      console.log(`Drive document dimuat: ${docInfo.title} (${chunks.length} chunk)`);
+    } catch (error) {
+      console.error(`Gagal membaca dokumen Drive: ${docInfo.title}`, error.message);
     }
-
-    if (document.type === "excel") {
-      const rows = readExcelRowsFromBuffer(buffer, document.fileName);
-
-      rows.forEach((row) => {
-        documentsCache.push({
-          fileName: document.fileName,
-          type: document.type,
-          intent: document.intent,
-          chunkId: row.rowNumber,
-          source: buildSource(document),
-          content: row.content
-        });
-      });
-    }
-  } catch (error) {
-    console.error(`Load Drive Document Error (${document.fileName}):`, error.message);
   }
 }
 
@@ -326,163 +309,92 @@ async function loadDocuments() {
   documentsCache = [];
   registeredDocumentsCache = [];
 
-  const staticDocuments = chatbotConfig.documents || [];
-  const uploadedDocuments = getUploadedDocuments();
-  const driveDocuments = await getDriveDocuments();
+  await loadLocalDocuments();
+  await loadDriveDocuments();
 
-  registeredDocumentsCache = [
-    ...staticDocuments,
-    ...uploadedDocuments,
-    ...driveDocuments
-  ].map(normalizeDocument);
-
+  console.log(`Knowledge base dimuat: ${documentsCache.length} chunk.`);
   console.log(
     "Registered documents:",
     registeredDocumentsCache.map((doc) => ({
       title: doc.title,
       fileName: doc.fileName,
-      intent: doc.intent,
-      category: doc.category,
       source: doc.source,
-      driveFileId: doc.driveFileId ? "ADA" : "TIDAK ADA",
+      intent: doc.intent,
       keywords: doc.keywords
     }))
   );
-
-  for (const document of registeredDocumentsCache) {
-    if (document.source === "google_drive" || document.driveFileId) {
-      await loadDriveDocument(document);
-    } else {
-      await loadLocalDocument(document);
-    }
-  }
-
-  console.log(`Knowledge base dimuat: ${documentsCache.length} chunk.`);
 }
 
-function getRelatedDocumentByFileName(fileName) {
-  return registeredDocumentsCache.find((item) => item.fileName === fileName);
-}
+function getImportantTokens(text) {
+  const stopwords = new Set([
+    "apa",
+    "siapa",
+    "yang",
+    "di",
+    "ke",
+    "dari",
+    "dan",
+    "atau",
+    "untuk",
+    "dengan",
+    "tentang",
+    "info",
+    "informasi",
+    "data",
+    "dokumen",
+    "saya",
+    "kamu",
+    "adalah",
+    "itu",
+    "ini",
+    "berapa",
+    "bagaimana",
+    "cara"
+  ]);
 
-function buildMetadataText(document) {
-  if (!document) return "";
-
-  const keywords = Array.isArray(document.keywords)
-    ? document.keywords.join(" ")
-    : "";
-
-  return [
-    document.title,
-    document.originalName,
-    document.fileName,
-    document.intent,
-    document.category,
-    document.link,
-    document.driveViewLink,
-    keywords
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-function getSearchTokens(text) {
   return normalizeText(text)
-    .split(" ")
-    .map((word) => word.trim())
-    .filter((word) => word.length >= 3)
-    .filter((word) => {
-      return ![
-        "yang",
-        "dan",
-        "atau",
-        "untuk",
-        "dengan",
-        "dari",
-        "pada",
-        "dalam",
-        "adalah",
-        "apa",
-        "siapa",
-        "bagaimana",
-        "cara",
-        "tentang",
-        "saya",
-        "kamu",
-        "anda",
-        "ini",
-        "itu",
-        "min",
-        "dong",
-        "tolong"
-      ].includes(word);
-    });
+    .split(/\s+/)
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 3)
+    .filter((item) => !stopwords.has(item));
 }
 
 function isStrongMetadataMatch(message, document) {
   const normalizedMessage = normalizeText(message);
-  const normalizedMetadata = normalizeText(buildMetadataText(document));
-  const messageTokens = getSearchTokens(message);
+  const metadataText = normalizeText(buildMetadataText(document));
+  const tokens = getImportantTokens(message);
 
-  if (!normalizedMessage || !normalizedMetadata) return false;
+  if (!normalizedMessage || !metadataText) {
+    return false;
+  }
 
-  if (normalizedMetadata.includes(normalizedMessage)) {
+  if (metadataText.includes(normalizedMessage)) {
     return true;
   }
 
-  if (document?.title) {
-    const normalizedTitle = normalizeText(document.title);
-
-    if (
-      normalizedTitle.includes(normalizedMessage) ||
-      normalizedMessage.includes(normalizedTitle)
-    ) {
-      return true;
-    }
+  if (normalizedMessage.includes(normalizeText(document.title || ""))) {
+    return true;
   }
 
-  if (Array.isArray(document?.keywords)) {
-    const keywordText = normalizeText(document.keywords.join(" "));
+  const keywords = normalizeArray(document.keywords);
 
-    if (
-      keywordText.includes(normalizedMessage) ||
-      normalizedMessage.includes(keywordText)
-    ) {
-      return true;
-    }
+  const keywordMatched = keywords.some((keyword) => {
+    const normalizedKeyword = normalizeText(keyword);
 
-    for (const keyword of document.keywords) {
-      const normalizedKeyword = normalizeText(keyword);
-
-      if (!normalizedKeyword) continue;
-
-      if (
-        normalizedKeyword.includes(normalizedMessage) ||
-        normalizedMessage.includes(normalizedKeyword)
-      ) {
-        return true;
-      }
-    }
-  }
-
-  let matchedTokenCount = 0;
-
-  messageTokens.forEach((token) => {
-    if (normalizedMetadata.includes(token)) {
-      matchedTokenCount += 1;
-    }
+    return (
+      normalizedKeyword &&
+      (normalizedMessage.includes(normalizedKeyword) ||
+        metadataText.includes(normalizedKeyword))
+    );
   });
 
-  /*
-    Generic rule:
-    Kalau minimal 2 kata penting dari pertanyaan cocok dengan metadata,
-    dokumen dianggap strong match.
+  if (keywordMatched) {
+    return true;
+  }
 
-    Contoh:
-    Pertanyaan: "Tim Kelola Kerja Praktik"
-    Token cocok: kerja, praktik
-    Maka dokumen kerja praktik dikunci.
-  */
-  return matchedTokenCount >= 2;
+  const matchedTokens = tokens.filter((token) => metadataText.includes(token));
+
+  return matchedTokens.length >= 2;
 }
 
 function getStrongMatchedDocuments(message) {
@@ -491,126 +403,81 @@ function getStrongMatchedDocuments(message) {
   );
 }
 
-function scoreDocumentByQuestion(doc, message, intent, keywords, strongFileNames) {
-  const relatedDocument = getRelatedDocumentByFileName(doc.fileName);
-  const metadataText = buildMetadataText(relatedDocument);
+function isLecturerQuestion(message) {
+  const text = normalizeText(message);
 
+  return (
+    text.includes("dosen") ||
+    text.includes("nip") ||
+    text.includes("nip ypt") ||
+    text.includes("kode dosen")
+  );
+}
+
+function scoreDocumentByQuestion(doc, message, intent, keywords, strongFileNames) {
   const normalizedMessage = normalizeText(message);
   const normalizedContent = normalizeText(doc.content);
-  const normalizedMetadata = normalizeText(metadataText);
-  const messageTokens = getSearchTokens(message);
+  const metadataText = normalizeText(buildMetadataText(doc.documentInfo));
 
   let score = 0;
 
-  /*
-    Skor isi dokumen.
-  */
   score += scoreTextByKeywords(doc.content, keywords);
 
-  /*
-    Skor metadata dibuat besar agar dokumen upload admin tidak kalah
-    dengan dokumen bawaan.
-  */
-  score += scoreTextByKeywords(metadataText, keywords) * 8;
+  keywords.forEach((keyword) => {
+    const normalizedKeyword = normalizeText(keyword);
 
-  /*
-    Intent hanya boost, bukan filter.
-  */
-  if (doc.intent === intent) {
-    score += 10;
-  }
-
-  /*
-    Exact match isi dokumen.
-  */
-  if (normalizedContent.includes(normalizedMessage)) {
-    score += 40;
-  }
-
-  /*
-    Exact match metadata.
-  */
-  if (normalizedMetadata.includes(normalizedMessage)) {
-    score += 150;
-  }
-
-  /*
-    Token match.
-  */
-  messageTokens.forEach((token) => {
-    if (normalizedContent.includes(token)) {
-      score += 3;
+    if (normalizedContent.includes(normalizedKeyword)) {
+      score += 8;
     }
 
-    if (normalizedMetadata.includes(token)) {
-      score += 25;
+    if (metadataText.includes(normalizedKeyword)) {
+      score += 10;
     }
   });
 
-  /*
-    Judul dokumen.
-  */
-  if (relatedDocument?.title) {
-    const normalizedTitle = normalizeText(relatedDocument.title);
+  const messageTokens = getImportantTokens(message);
 
-    if (
-      normalizedTitle.includes(normalizedMessage) ||
-      normalizedMessage.includes(normalizedTitle)
-    ) {
-      score += 200;
+  messageTokens.forEach((token) => {
+    if (normalizedContent.includes(token)) {
+      score += 7;
     }
 
-    messageTokens.forEach((token) => {
-      if (normalizedTitle.includes(token)) {
-        score += 35;
-      }
-    });
+    if (metadataText.includes(token)) {
+      score += 12;
+    }
+  });
+
+  if (doc.intent === intent && intent !== "umum") {
+    score += 12;
   }
 
-  /*
-    Keywords admin.
-  */
-  if (Array.isArray(relatedDocument?.keywords)) {
-    relatedDocument.keywords.forEach((keyword) => {
-      const normalizedKeyword = normalizeText(keyword);
-
-      if (!normalizedKeyword) return;
-
-      if (
-        normalizedKeyword.includes(normalizedMessage) ||
-        normalizedMessage.includes(normalizedKeyword)
-      ) {
-        score += 250;
-      }
-
-      messageTokens.forEach((token) => {
-        if (normalizedKeyword.includes(token)) {
-          score += 35;
-        }
-      });
-    });
+  if (normalizedContent.includes(normalizedMessage)) {
+    score += 25;
   }
 
-  /*
-    Kalau metadata sudah strong match, dokumen dikunci dan diberi boost besar.
-  */
+  if (metadataText.includes(normalizedMessage)) {
+    score += 35;
+  }
+
   if (strongFileNames.has(doc.fileName)) {
     score += 1000;
   }
 
-  /*
-    Boost dokumen Google Drive.
-  */
-  if (relatedDocument?.source === "google_drive" || relatedDocument?.driveFileId) {
-    score += 50;
+  if (doc.documentInfo?.source === "google_drive") {
+    score += 20;
   }
 
   return score;
 }
 
 async function searchRelevantDocuments(message) {
+  if (!documentsCache.length) {
+    await loadDocuments();
+  }
+
   const intent = detectIntent(message);
   const keywords = getKeywords(message);
+  const normalizedMessage = normalizeText(message);
 
   const results = [];
 
@@ -627,26 +494,57 @@ async function searchRelevantDocuments(message) {
         link: ""
       },
       content: updateContext,
-      score: 99999
+      score: 2000
     });
   }
 
-  const strongMatchedDocuments = getStrongMatchedDocuments(message);
-
+  const strongDocuments = getStrongMatchedDocuments(message);
   const strongFileNames = new Set(
-    strongMatchedDocuments.map((document) => document.fileName)
+    strongDocuments.map((doc) => doc.fileName || doc.originalName)
   );
 
-  /*
-    Kalau ada strong metadata match, pencarian dikunci ke dokumen tersebut.
-    Ini mencegah dokumen lama seperti TA ikut menang.
-  */
   let selectedDocs = documentsCache;
 
   if (strongFileNames.size > 0) {
-    selectedDocs = documentsCache.filter((doc) =>
-      strongFileNames.has(doc.fileName)
+    selectedDocs = documentsCache.filter((doc) => strongFileNames.has(doc.fileName));
+  } else if (intent !== "umum") {
+    const intentDocs = documentsCache.filter((doc) => doc.intent === intent);
+
+    if (intentDocs.length > 0) {
+      selectedDocs = intentDocs;
+    }
+  }
+
+  /*
+    Khusus pertanyaan dosen/NIP:
+    meskipun update admin ditemukan, dokumen Data Dosen tetap dipaksa ikut dicari.
+    Tujuannya agar format jawaban tetap lengkap:
+    Nama, Status Aktif, Prodi, NIP YPT, Nama Gelar, Kode Dosen Baru.
+  */
+  if (isLecturerQuestion(message)) {
+    const lecturerDocs = documentsCache.filter((doc) => {
+      const sourceTitle = normalizeText(doc.sourceInfo?.title || "");
+      const content = normalizeText(doc.content);
+
+      return (
+        sourceTitle.includes("data dosen") ||
+        doc.fileName.toLowerCase().includes("dosen") ||
+        content.includes("nip ypt") ||
+        content.includes("kode dosen")
+      );
+    });
+
+    const existingKeys = new Set(
+      selectedDocs.map((doc) => `${doc.fileName}-${doc.chunkId}`)
     );
+
+    lecturerDocs.forEach((doc) => {
+      const key = `${doc.fileName}-${doc.chunkId}`;
+
+      if (!existingKeys.has(key)) {
+        selectedDocs.push(doc);
+      }
+    });
   }
 
   selectedDocs.forEach((doc) => {
@@ -664,7 +562,7 @@ async function searchRelevantDocuments(message) {
         type: doc.type,
         intent: doc.intent,
         chunkId: doc.chunkId,
-        source: doc.source || getSource(doc.fileName),
+        source: doc.sourceInfo,
         content: doc.content,
         score
       });
@@ -673,23 +571,10 @@ async function searchRelevantDocuments(message) {
 
   results.sort((a, b) => b.score - a.score);
 
-  const maxResults = chatbotConfig.retrieval.maxResults || 6;
-
-  console.log(
-    "Strong metadata match:",
-    strongMatchedDocuments.map((doc) => ({
-      title: doc.title,
-      fileName: doc.fileName,
-      intent: doc.intent,
-      category: doc.category,
-      keywords: doc.keywords
-    }))
-  );
-
   console.log(
     "Top retrieval:",
-    results.slice(0, 5).map((item) => ({
-      title: item.source?.title,
+    results.slice(0, 6).map((item) => ({
+      title: item.source.title,
       fileName: item.fileName,
       score: item.score
     }))
@@ -698,29 +583,12 @@ async function searchRelevantDocuments(message) {
   return {
     intent,
     keywords,
-    results: results.slice(0, maxResults)
+    results: results.slice(0, chatbotConfig.retrieval.maxResults || 6)
   };
 }
 
 function getAllDocumentsInfo() {
   const grouped = {};
-
-  registeredDocumentsCache.forEach((document) => {
-    grouped[document.fileName] = {
-      fileName: document.fileName,
-      originalName: document.originalName,
-      title: document.title,
-      intent: document.intent,
-      type: document.type,
-      category: document.category,
-      keywords: document.keywords || [],
-      link: document.driveViewLink || document.link || "",
-      driveViewLink: document.driveViewLink || "",
-      source: buildSource(document),
-      chunks: 0,
-      uploadedAt: document.uploadedAt || ""
-    };
-  });
 
   documentsCache.forEach((doc) => {
     if (!grouped[doc.fileName]) {
@@ -729,7 +597,7 @@ function getAllDocumentsInfo() {
         intent: doc.intent,
         type: doc.type,
         chunks: 0,
-        source: doc.source || getSource(doc.fileName)
+        source: doc.sourceInfo
       };
     }
 
@@ -738,11 +606,8 @@ function getAllDocumentsInfo() {
 
   grouped["knowledge-updates.json"] = {
     fileName: "knowledge-updates.json",
-    title: "Database Update Chatbot",
     intent: "update",
     type: "database",
-    category: "Update Admin",
-    keywords: ["update", "admin", "data terbaru"],
     chunks: 1,
     source: {
       title: "Database Update Chatbot",

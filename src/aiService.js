@@ -23,32 +23,8 @@ function normalizeSimpleText(text) {
 }
 
 /* =========================
-   LECTURER DATA FORMAT
+   UPDATE CONTEXT
 ========================= */
-
-function extractLecturerData(context) {
-  const text = String(context || "");
-
-  const nameMatch = text.match(/NAMA:\s*([^;]+)/i);
-  const statusMatch = text.match(/Status Aktif:\s*([^;]+)/i);
-  const prodiMatch = text.match(/PRODI:\s*([^;]+)/i);
-  const nipMatch = text.match(/NIP YPT:\s*([^;]+)/i);
-  const gelarMatch = text.match(/Nama Gelar:\s*([^;]+)/i);
-  const kodeMatch = text.match(/Kode Dosen Baru:\s*([^;\n]+)/i);
-
-  if (!nameMatch && !nipMatch && !gelarMatch) {
-    return null;
-  }
-
-  return {
-    nama: nameMatch ? nameMatch[1].trim() : "",
-    status: statusMatch ? statusMatch[1].trim() : "",
-    prodi: prodiMatch ? prodiMatch[1].trim() : "",
-    nip: nipMatch ? nipMatch[1].trim() : "",
-    gelar: gelarMatch ? gelarMatch[1].trim() : "",
-    kode: kodeMatch ? kodeMatch[1].trim() : ""
-  };
-}
 
 function extractUpdateBlocks(context) {
   const text = String(context || "");
@@ -95,6 +71,55 @@ function getLatestUpdateValue(context, fieldKeywords = []) {
   });
 
   return matchedUpdate ? matchedUpdate.value : "";
+}
+
+/* =========================
+   LECTURER FORMAT
+========================= */
+
+function extractLecturerData(context) {
+  const text = String(context || "");
+
+  /*
+    Format excel biasanya:
+    NAMA: ...; Status Aktif: ...; PRODI: ...; NIP YPT: ...; Nama Gelar: ...; Kode Dosen Baru: ...
+  */
+  const lecturerBlocks = text
+    .split(/\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => {
+      const lower = line.toLowerCase();
+
+      return (
+        lower.includes("nip ypt") ||
+        lower.includes("kode dosen baru") ||
+        lower.includes("nama gelar") ||
+        lower.includes("status aktif")
+      );
+    });
+
+  const targetText = lecturerBlocks.length ? lecturerBlocks.join("\n") : text;
+
+  const nameMatch = targetText.match(/NAMA:\s*([^;\n]+)/i);
+  const statusMatch = targetText.match(/Status Aktif:\s*([^;\n]+)/i);
+  const prodiMatch = targetText.match(/PRODI:\s*([^;\n]+)/i);
+  const nipMatch = targetText.match(/NIP YPT:\s*([^;\n]+)/i);
+  const gelarMatch = targetText.match(/Nama Gelar:\s*([^;\n]+)/i);
+  const kodeMatch = targetText.match(/Kode Dosen Baru:\s*([^;\n]+)/i);
+
+  if (!nameMatch && !nipMatch && !gelarMatch && !kodeMatch) {
+    return null;
+  }
+
+  return {
+    nama: nameMatch ? nameMatch[1].trim() : "",
+    status: statusMatch ? statusMatch[1].trim() : "",
+    prodi: prodiMatch ? prodiMatch[1].trim() : "",
+    nip: nipMatch ? nipMatch[1].trim() : "",
+    gelar: gelarMatch ? gelarMatch[1].trim() : "",
+    kode: kodeMatch ? kodeMatch[1].trim() : ""
+  };
 }
 
 function applyLecturerUpdates(lecturer, context) {
@@ -363,13 +388,8 @@ async function askGroq(question, context, sourceTitle, options = {}) {
   );
 
   /*
-    Penting:
-    Untuk data dosen, jawaban dibuat deterministic agar formatnya selalu sama.
-    Jika ada update admin, value update akan menimpa data lama dari dokumen.
-    Contoh:
-    Data Dosen 2026: NIP 22960061
-    Database Update Chatbot: NIP 22960064
-    Output: tetap format data dosen, tetapi NIP menjadi 22960064.
+    Untuk pertanyaan dosen/NIP, jangan biarkan LLM membuat format sendiri.
+    Jawaban dibuat langsung dari data dokumen + update admin.
   */
   if (isLecturerQuestion(question)) {
     const lecturerAnswer = buildLecturerFallbackAnswer(trimmedContext);
