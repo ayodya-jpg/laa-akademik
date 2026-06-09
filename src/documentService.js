@@ -1,4 +1,3 @@
-const path = require("path");
 const pdfParse = require("pdf-parse");
 const XLSX = require("xlsx");
 
@@ -82,6 +81,26 @@ function normalizeArray(value) {
     .filter(Boolean);
 }
 
+function detectFileType(fileName, mimeType) {
+  const lowerName = String(fileName || "").toLowerCase();
+  const lowerMime = String(mimeType || "").toLowerCase();
+
+  if (lowerName.endsWith(".pdf") || lowerMime.includes("pdf")) {
+    return "pdf";
+  }
+
+  if (
+    lowerName.endsWith(".xlsx") ||
+    lowerName.endsWith(".xls") ||
+    lowerMime.includes("spreadsheet") ||
+    lowerMime.includes("excel")
+  ) {
+    return "excel";
+  }
+
+  return "file";
+}
+
 function buildMetadataText(document) {
   return [
     document.title,
@@ -138,6 +157,7 @@ function buildDriveDocumentInfo(document) {
     source: "google_drive",
     title: document.title || document.originalName || document.fileName,
     originalName: document.originalName || document.fileName,
+    fileName: document.fileName || document.originalName,
     type: document.type || detectFileType(document.originalName || document.fileName, ""),
     intent: document.intent || "umum",
     category: document.category || "Dokumen Akademik",
@@ -145,44 +165,28 @@ function buildDriveDocumentInfo(document) {
   };
 }
 
-function detectFileType(fileName, mimeType) {
-  const lowerName = String(fileName || "").toLowerCase();
-  const lowerMime = String(mimeType || "").toLowerCase();
-
-  if (lowerName.endsWith(".pdf") || lowerMime.includes("pdf")) {
-    return "pdf";
-  }
-
-  if (
-    lowerName.endsWith(".xlsx") ||
-    lowerName.endsWith(".xls") ||
-    lowerMime.includes("spreadsheet") ||
-    lowerMime.includes("excel")
-  ) {
-    return "excel";
-  }
-
-  return "file";
-}
-
 async function extractDriveDocumentText(document) {
   if (!googleDriveService || !googleDriveService.downloadFileFromDrive) {
+    console.log("Google Drive service / downloadFileFromDrive belum tersedia.");
     return "";
   }
 
   if (!document.driveFileId) {
+    console.log("Drive file ID kosong:", document.title);
     return "";
   }
 
-  const buffer = await googleDriveService.downloadFileFromDrive(
-    document.driveFileId
-  );
+  const buffer = await googleDriveService.downloadFileFromDrive(document.driveFileId);
 
   if (!buffer || buffer.length === 0) {
+    console.log("Buffer Drive kosong:", document.title);
     return "";
   }
 
-  const type = detectFileType(document.originalName || document.fileName, document.mimeType);
+  const type = detectFileType(
+    document.originalName || document.fileName,
+    document.mimeType || document.type
+  );
 
   if (type === "pdf") {
     const parsed = await pdfParse(buffer);
@@ -198,6 +202,7 @@ async function extractDriveDocumentText(document) {
 
     workbook.SheetNames.forEach((sheetName) => {
       const sheet = workbook.Sheets[sheetName];
+
       const rows = XLSX.utils.sheet_to_json(sheet, {
         defval: "",
         raw: false
@@ -223,6 +228,7 @@ async function extractDriveDocumentText(document) {
 async function loadLocalDocuments() {
   for (const document of chatbotConfig.documents) {
     const docInfo = buildLocalDocumentInfo(document);
+
     registeredDocumentsCache.push(docInfo);
 
     if (docInfo.type === "pdf") {
@@ -267,20 +273,55 @@ async function loadLocalDocuments() {
 
 async function loadDriveDocuments() {
   if (!googleDriveService || !googleDriveService.readDriveDocuments) {
+    console.log("Google Drive service belum aktif di documentService.");
     return;
   }
 
   const driveDocuments = await googleDriveService.readDriveDocuments();
 
+  console.log(
+    "Drive metadata terbaca:",
+    (driveDocuments || []).map((doc) => ({
+      title: doc.title,
+      fileName: doc.fileName,
+      originalName: doc.originalName,
+      driveFileId: doc.driveFileId
+    }))
+  );
+
   for (const rawDocument of driveDocuments || []) {
     const docInfo = buildDriveDocumentInfo(rawDocument);
+
     registeredDocumentsCache.push(docInfo);
 
     try {
       const text = await extractDriveDocumentText(docInfo);
 
+      console.log(
+        `Drive text length: ${docInfo.title} = ${String(text || "").length}`
+      );
+
       if (!text || text.trim().length === 0) {
-        console.log("Drive document kosong / gagal dibaca:", docInfo.title);
+        const metadataFallback = `
+Judul Dokumen: ${docInfo.title}
+Nama File: ${docInfo.originalName || docInfo.fileName}
+Intent: ${docInfo.intent}
+Kategori: ${docInfo.category}
+Keywords: ${normalizeArray(docInfo.keywords).join(", ")}
+Link: ${docInfo.driveViewLink || docInfo.link || ""}
+        `.trim();
+
+        documentsCache.push({
+          fileName: docInfo.fileName || docInfo.originalName,
+          type: docInfo.type,
+          intent: docInfo.intent,
+          chunkId: 1,
+          sourceInfo: getDocumentSource(docInfo),
+          documentInfo: docInfo,
+          content: metadataFallback
+        });
+
+        console.log(`Drive metadata fallback dimuat: ${docInfo.title}`);
         continue;
       }
 
@@ -349,7 +390,9 @@ function getImportantTokens(text) {
     "ini",
     "berapa",
     "bagaimana",
-    "cara"
+    "cara",
+    "alur",
+    "prosedur"
   ]);
 
   return normalizeText(text)
@@ -372,7 +415,7 @@ function isStrongMetadataMatch(message, document) {
     return true;
   }
 
-  if (normalizedMessage.includes(normalizeText(document.title || ""))) {
+  if (document.title && normalizedMessage.includes(normalizeText(document.title))) {
     return true;
   }
 
@@ -394,7 +437,7 @@ function isStrongMetadataMatch(message, document) {
 
   const matchedTokens = tokens.filter((token) => metadataText.includes(token));
 
-  return matchedTokens.length >= 2;
+  return matchedTokens.length >= 1;
 }
 
 function getStrongMatchedDocuments(message) {
@@ -417,7 +460,7 @@ function isLecturerQuestion(message) {
 function scoreDocumentByQuestion(doc, message, intent, keywords, strongFileNames) {
   const normalizedMessage = normalizeText(message);
   const normalizedContent = normalizeText(doc.content);
-  const metadataText = normalizeText(buildMetadataText(doc.documentInfo));
+  const metadataText = normalizeText(buildMetadataText(doc.documentInfo || {}));
 
   let score = 0;
 
@@ -431,7 +474,7 @@ function scoreDocumentByQuestion(doc, message, intent, keywords, strongFileNames
     }
 
     if (metadataText.includes(normalizedKeyword)) {
-      score += 10;
+      score += 18;
     }
   });
 
@@ -439,24 +482,24 @@ function scoreDocumentByQuestion(doc, message, intent, keywords, strongFileNames
 
   messageTokens.forEach((token) => {
     if (normalizedContent.includes(token)) {
-      score += 7;
+      score += 8;
     }
 
     if (metadataText.includes(token)) {
-      score += 12;
+      score += 20;
     }
   });
 
   if (doc.intent === intent && intent !== "umum") {
-    score += 12;
+    score += 15;
   }
 
   if (normalizedContent.includes(normalizedMessage)) {
-    score += 25;
+    score += 30;
   }
 
   if (metadataText.includes(normalizedMessage)) {
-    score += 35;
+    score += 50;
   }
 
   if (strongFileNames.has(doc.fileName)) {
@@ -464,7 +507,7 @@ function scoreDocumentByQuestion(doc, message, intent, keywords, strongFileNames
   }
 
   if (doc.documentInfo?.source === "google_drive") {
-    score += 20;
+    score += 35;
   }
 
   return score;
@@ -477,7 +520,6 @@ async function searchRelevantDocuments(message) {
 
   const intent = detectIntent(message);
   const keywords = getKeywords(message);
-  const normalizedMessage = normalizeText(message);
 
   const results = [];
 
@@ -503,6 +545,15 @@ async function searchRelevantDocuments(message) {
     strongDocuments.map((doc) => doc.fileName || doc.originalName)
   );
 
+  console.log(
+    "Strong metadata match:",
+    strongDocuments.map((doc) => ({
+      title: doc.title,
+      fileName: doc.fileName,
+      source: doc.source
+    }))
+  );
+
   let selectedDocs = documentsCache;
 
   if (strongFileNames.size > 0) {
@@ -515,20 +566,15 @@ async function searchRelevantDocuments(message) {
     }
   }
 
-  /*
-    Khusus pertanyaan dosen/NIP:
-    meskipun update admin ditemukan, dokumen Data Dosen tetap dipaksa ikut dicari.
-    Tujuannya agar format jawaban tetap lengkap:
-    Nama, Status Aktif, Prodi, NIP YPT, Nama Gelar, Kode Dosen Baru.
-  */
   if (isLecturerQuestion(message)) {
     const lecturerDocs = documentsCache.filter((doc) => {
       const sourceTitle = normalizeText(doc.sourceInfo?.title || "");
-      const content = normalizeText(doc.content);
+      const fileName = normalizeText(doc.fileName || "");
+      const content = normalizeText(doc.content || "");
 
       return (
         sourceTitle.includes("data dosen") ||
-        doc.fileName.toLowerCase().includes("dosen") ||
+        fileName.includes("dosen") ||
         content.includes("nip ypt") ||
         content.includes("kode dosen")
       );
@@ -573,7 +619,7 @@ async function searchRelevantDocuments(message) {
 
   console.log(
     "Top retrieval:",
-    results.slice(0, 6).map((item) => ({
+    results.slice(0, 8).map((item) => ({
       title: item.source.title,
       fileName: item.fileName,
       score: item.score
