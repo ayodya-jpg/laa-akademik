@@ -1,4 +1,4 @@
-const { loadDocuments, searchRelevantDocuments } = require("../src/documentService");
+const { loadDocuments } = require("../src/documentService");
 const { processChat } = require("../src/chatService");
 
 module.exports = async function handler(req, res) {
@@ -21,27 +21,7 @@ module.exports = async function handler(req, res) {
 
     console.log("CHAT MESSAGE:", message);
 
-    /*
-      Wajib:
-      Load ulang semua dokumen setiap chat agar dokumen Google Drive terbaru terbaca.
-    */
     await loadDocuments();
-
-    /*
-      Debug:
-      Cek apakah dokumen Drive masuk ke hasil pencarian.
-    */
-    const debugRetrieval = await searchRelevantDocuments(message);
-
-    console.log(
-      "CHAT DEBUG RETRIEVAL:",
-      debugRetrieval.results.map((item) => ({
-        title: item.source?.title,
-        fileName: item.fileName,
-        score: item.score,
-        preview: String(item.content || "").slice(0, 180)
-      }))
-    );
 
     const result = await processChat(message);
 
@@ -49,14 +29,7 @@ module.exports = async function handler(req, res) {
       success: true,
       bot: process.env.BOT_NAME || "LAA Akademik Bot",
       answer: result.answer,
-      sources: result.sources || [],
-      debug: {
-        retrieval: debugRetrieval.results.map((item) => ({
-          title: item.source?.title,
-          fileName: item.fileName,
-          score: item.score
-        }))
-      }
+      sources: result.sources || []
     });
   } catch (error) {
     console.error("Vercel Chat Error:", error);
