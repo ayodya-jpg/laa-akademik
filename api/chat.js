@@ -1,4 +1,4 @@
-const { loadDocuments } = require("../src/documentService");
+const { loadDocuments, searchRelevantDocuments } = require("../src/documentService");
 const { processChat } = require("../src/chatService");
 
 module.exports = async function handler(req, res) {
@@ -10,8 +10,6 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    await loadDocuments();
-
     const { message } = req.body || {};
 
     if (!message || String(message).trim() === "") {
@@ -21,13 +19,44 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    console.log("CHAT MESSAGE:", message);
+
+    /*
+      Wajib:
+      Load ulang semua dokumen setiap chat agar dokumen Google Drive terbaru terbaca.
+    */
+    await loadDocuments();
+
+    /*
+      Debug:
+      Cek apakah dokumen Drive masuk ke hasil pencarian.
+    */
+    const debugRetrieval = await searchRelevantDocuments(message);
+
+    console.log(
+      "CHAT DEBUG RETRIEVAL:",
+      debugRetrieval.results.map((item) => ({
+        title: item.source?.title,
+        fileName: item.fileName,
+        score: item.score,
+        preview: String(item.content || "").slice(0, 180)
+      }))
+    );
+
     const result = await processChat(message);
 
     return res.status(200).json({
       success: true,
       bot: process.env.BOT_NAME || "LAA Akademik Bot",
       answer: result.answer,
-      sources: result.sources || []
+      sources: result.sources || [],
+      debug: {
+        retrieval: debugRetrieval.results.map((item) => ({
+          title: item.source?.title,
+          fileName: item.fileName,
+          score: item.score
+        }))
+      }
     });
   } catch (error) {
     console.error("Vercel Chat Error:", error);
@@ -36,7 +65,8 @@ module.exports = async function handler(req, res) {
       success: false,
       answer:
         "Maaf, sedang terjadi kendala saat memproses pertanyaan. Coba ulangi beberapa saat lagi ya.",
-      error: error.message
+      error: error.message,
+      stack: error.stack
     });
   }
 };
