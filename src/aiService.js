@@ -22,8 +22,21 @@ function normalizeSimpleText(text) {
     .trim();
 }
 
+function isLecturerQuestion(question) {
+  const questionType = getQuestionType(question);
+  const normalizedQuestion = normalizeSimpleText(question);
+
+  return (
+    questionType === "lecturer" ||
+    normalizedQuestion.includes("dosen") ||
+    normalizedQuestion.includes("nip") ||
+    normalizedQuestion.includes("nip ypt") ||
+    normalizedQuestion.includes("kode dosen")
+  );
+}
+
 /* =========================
-   UPDATE CONTEXT
+   UPDATE ADMIN PARSER
 ========================= */
 
 function extractUpdateBlocks(context) {
@@ -74,32 +87,57 @@ function getLatestUpdateValue(context, fieldKeywords = []) {
 }
 
 /* =========================
-   LECTURER FORMAT
+   LECTURER DATA FORMAT
 ========================= */
 
-function extractLecturerData(context) {
+function extractLecturerData(context, question = "") {
   const text = String(context || "");
+  const normalizedQuestion = normalizeSimpleText(question);
 
-  /*
-    Format excel biasanya:
-    NAMA: ...; Status Aktif: ...; PRODI: ...; NIP YPT: ...; Nama Gelar: ...; Kode Dosen Baru: ...
-  */
-  const lecturerBlocks = text
-    .split(/\n/)
+  const lecturerLines = text
+    .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
     .filter((line) => {
-      const lower = line.toLowerCase();
+      const lower = normalizeSimpleText(line);
 
       return (
         lower.includes("nip ypt") ||
         lower.includes("kode dosen baru") ||
         lower.includes("nama gelar") ||
-        lower.includes("status aktif")
+        lower.includes("status aktif") ||
+        lower.includes("prodi")
       );
     });
 
-  const targetText = lecturerBlocks.length ? lecturerBlocks.join("\n") : text;
+  let selectedLine = "";
+
+  if (lecturerLines.length) {
+    const questionTokens = normalizedQuestion
+      .split(" ")
+      .filter((token) => token.length >= 3)
+      .filter(
+        (token) =>
+          ![
+            "nip",
+            "dosen",
+            "kode",
+            "data",
+            "info",
+            "informasi",
+            "berapa"
+          ].includes(token)
+      );
+
+    selectedLine =
+      lecturerLines.find((line) => {
+        const lowerLine = normalizeSimpleText(line);
+
+        return questionTokens.some((token) => lowerLine.includes(token));
+      }) || lecturerLines[0];
+  }
+
+  const targetText = selectedLine || text;
 
   const nameMatch = targetText.match(/NAMA:\s*([^;\n]+)/i);
   const statusMatch = targetText.match(/Status Aktif:\s*([^;\n]+)/i);
@@ -178,8 +216,8 @@ function applyLecturerUpdates(lecturer, context) {
   return updatedLecturer;
 }
 
-function buildLecturerFallbackAnswer(context) {
-  const lecturer = extractLecturerData(context);
+function buildLecturerAnswer(question, context) {
+  const lecturer = extractLecturerData(context, question);
 
   if (!lecturer) {
     return null;
@@ -214,19 +252,6 @@ function buildLecturerFallbackAnswer(context) {
   }
 
   return answer.trim();
-}
-
-function isLecturerQuestion(question) {
-  const questionType = getQuestionType(question);
-  const normalizedQuestion = normalizeSimpleText(question);
-
-  return (
-    questionType === "lecturer" ||
-    normalizedQuestion.includes("dosen") ||
-    normalizedQuestion.includes("nip") ||
-    normalizedQuestion.includes("nip ypt") ||
-    normalizedQuestion.includes("kode dosen")
-  );
 }
 
 /* =========================
@@ -265,7 +290,7 @@ function buildFallbackAnswer(question, context, sourceTitle) {
   const normalizedQuestion = normalizeSimpleText(question);
 
   if (isLecturerQuestion(question)) {
-    const lecturerAnswer = buildLecturerFallbackAnswer(context);
+    const lecturerAnswer = buildLecturerAnswer(question, context);
 
     if (lecturerAnswer) {
       return lecturerAnswer;
@@ -388,11 +413,13 @@ async function askGroq(question, context, sourceTitle, options = {}) {
   );
 
   /*
-    Untuk pertanyaan dosen/NIP, jangan biarkan LLM membuat format sendiri.
-    Jawaban dibuat langsung dari data dokumen + update admin.
+    Penting:
+    Untuk pertanyaan data dosen/NIP, jangan dilempar ke LLM.
+    Jawaban dibuat langsung agar format selalu sama.
+    Jika ada update admin, update tersebut mengganti field lama.
   */
   if (isLecturerQuestion(question)) {
-    const lecturerAnswer = buildLecturerFallbackAnswer(trimmedContext);
+    const lecturerAnswer = buildLecturerAnswer(question, trimmedContext);
 
     if (lecturerAnswer) {
       return lecturerAnswer;

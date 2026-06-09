@@ -6,8 +6,7 @@ const {
   createUpdate,
   isResetCommand,
   parseResetCommand,
-  resetUpdates,
-  buildUpdateContext
+  resetUpdates
 } = require("./updateService");
 const chatbotConfig = require("./config/chatbotConfig");
 
@@ -16,6 +15,8 @@ let pendingAdminAction = null;
 function normalizeChatText(text) {
   return String(text || "")
     .toLowerCase()
+    .replace(/[-_/]/g, " ")
+    .replace(/[^\w\s.]/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -314,10 +315,14 @@ function appendSources(answer, sources = []) {
   return finalAnswer;
 }
 
-/*
-  Fungsi ini mengambil nilai update dari teks updateService.
-  Dibuat fleksibel karena format updateContext bisa berbeda-beda.
-*/
+/* ======================================================
+   DIRECT UPDATE ANSWER
+   Dipakai untuk data update umum seperti jadwal, tanggal,
+   registrasi, PRS, TA, dan sebagainya.
+   Khusus data dosen/NIP tidak boleh langsung dijawab dari sini,
+   supaya format lengkap Data Dosen 2026 tetap dipakai.
+====================================================== */
+
 function extractUpdateData(updateContext) {
   const text = String(updateContext || "");
 
@@ -326,6 +331,7 @@ function extractUpdateData(updateContext) {
     text.match(/topik\s*[:=]\s*([^\n]+)/i);
 
   const valueMatch =
+    text.match(/Nilai terbaru:\s*([^\n]+)/i) ||
     text.match(/Nilai baru:\s*([^\n]+)/i) ||
     text.match(/nilai\s*baru\s*[:=]\s*([^\n]+)/i) ||
     text.match(/menjadi\s+([^\n]+)/i) ||
@@ -352,25 +358,25 @@ function buildDirectUpdateAnswer(question, updateContext) {
     return null;
   }
 
-  /*
-    Kalau updateContext punya nilai baru, langsung jawab nilai baru.
-    Ini mencegah chatbot balik lagi ke Excel lama.
-  */
   if (value) {
-    if (normalizedQuestion.includes("nip")) {
-      return `Data terbaru dari admin menunjukkan bahwa NIP untuk ${topic.replace(/^nip\s+/i, "")} adalah ${value}.`;
-    }
-
     return `Data terbaru dari admin untuk ${topic} adalah ${value}.`;
   }
 
-  /*
-    Kalau format updateContext tidak berhasil diparse,
-    tetap tampilkan isi update sebagai sumber utama.
-  */
   return `Data terbaru dari admin yang tersedia adalah:
 
 ${String(updateContext).trim()}`;
+}
+
+function isLecturerQuestionForDirectUpdate(question) {
+  const text = normalizeChatText(question);
+
+  return (
+    text.includes("nip") ||
+    text.includes("nidn") ||
+    text.includes("dosen") ||
+    text.includes("kode dosen") ||
+    text.includes("nama gelar")
+  );
 }
 
 function shouldUseDirectUpdateAnswer(question, updateContext) {
@@ -378,25 +384,35 @@ function shouldUseDirectUpdateAnswer(question, updateContext) {
     return false;
   }
 
+  /*
+    Penting:
+    Untuk pertanyaan dosen/NIP, jangan jawab langsung dari update admin.
+    Kalau dijawab langsung, formatnya akan jadi:
+    "Data terbaru dari admin menunjukkan..."
+    Padahal yang diinginkan adalah format lengkap Data Dosen 2026.
+  */
+  if (isLecturerQuestionForDirectUpdate(question)) {
+    return false;
+  }
+
   const normalizedQuestion = normalizeChatText(question);
   const normalizedUpdate = normalizeChatText(updateContext);
 
-  /*
-    Jika pertanyaan user berkaitan dengan data yang di-update,
-    jawab langsung dari updateContext.
-  */
   const importantKeywords = [
-    "nip",
-    "nidn",
-    "kode dosen",
-    "dosen",
     "pendaftaran",
     "tanggal",
     "jadwal",
     "ta",
     "sidang",
     "prs",
-    "registrasi"
+    "registrasi",
+    "yudisium",
+    "wisuda",
+    "krs",
+    "mbkm",
+    "kerja praktik",
+    "kp",
+    "magang"
   ];
 
   const hasImportantKeyword = importantKeywords.some((keyword) =>
@@ -412,6 +428,232 @@ function shouldUseDirectUpdateAnswer(question, updateContext) {
   ).length;
 
   return hasImportantKeyword || matchedTokenCount >= 1;
+}
+
+/* ======================================================
+   FORMAT KHUSUS DATA DOSEN
+   Ambil data lengkap dari Data Dosen 2026,
+   lalu timpa field tertentu dengan update admin.
+====================================================== */
+
+function isLecturerQuestion(message) {
+  const text = normalizeChatText(message);
+
+  return (
+    text.includes("dosen") ||
+    text.includes("nip") ||
+    text.includes("nip ypt") ||
+    text.includes("nidn") ||
+    text.includes("kode dosen") ||
+    text.includes("nama gelar")
+  );
+}
+
+function getQuestionNameTokens(message) {
+  return normalizeChatText(message)
+    .split(" ")
+    .filter((token) => token.length >= 3)
+    .filter(
+      (token) =>
+        ![
+          "nip",
+          "nip ypt",
+          "nidn",
+          "dosen",
+          "kode",
+          "data",
+          "info",
+          "informasi",
+          "berapa",
+          "nama",
+          "gelar",
+          "status",
+          "prodi",
+          "program",
+          "studi"
+        ].includes(token)
+    );
+}
+
+function extractUpdateBlocksFromContext(context) {
+  const text = String(context || "");
+
+  const blocks = text
+    .split(/Update terbaru\s+\d+/i)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  return blocks
+    .map((block) => {
+      const topicMatch = block.match(/Topik:\s*([^\n]+)/i);
+      const valueMatch =
+        block.match(/Nilai terbaru:\s*([^\n]+)/i) ||
+        block.match(/Nilai baru:\s*([^\n]+)/i) ||
+        block.match(/Nilai:\s*([^\n]+)/i);
+      const originalMatch = block.match(/Perintah asli:\s*([^\n]+)/i);
+
+      return {
+        topic: topicMatch ? topicMatch[1].trim() : "",
+        value: valueMatch ? valueMatch[1].trim() : "",
+        original: originalMatch ? originalMatch[1].trim() : ""
+      };
+    })
+    .filter((item) => item.topic || item.value || item.original);
+}
+
+function extractLecturerLinesFromContext(context) {
+  const text = String(context || "");
+
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => {
+      const lower = normalizeChatText(line);
+
+      return (
+        lower.includes("nip ypt") ||
+        lower.includes("kode dosen baru") ||
+        lower.includes("nama gelar") ||
+        lower.includes("status aktif") ||
+        lower.includes("prodi")
+      );
+    });
+}
+
+function extractLecturerDataFromLine(line) {
+  const text = String(line || "");
+
+  const nameMatch = text.match(/NAMA:\s*([^;\n]+)/i);
+  const statusMatch = text.match(/Status Aktif:\s*([^;\n]+)/i);
+  const prodiMatch = text.match(/PRODI:\s*([^;\n]+)/i);
+  const nipMatch = text.match(/NIP YPT:\s*([^;\n]+)/i);
+  const gelarMatch = text.match(/Nama Gelar:\s*([^;\n]+)/i);
+  const kodeMatch = text.match(/Kode Dosen Baru:\s*([^;\n]+)/i);
+
+  if (!nameMatch && !nipMatch && !gelarMatch && !kodeMatch) {
+    return null;
+  }
+
+  return {
+    nama: nameMatch ? nameMatch[1].trim() : "",
+    status: statusMatch ? statusMatch[1].trim() : "",
+    prodi: prodiMatch ? prodiMatch[1].trim() : "",
+    nip: nipMatch ? nipMatch[1].trim() : "",
+    gelar: gelarMatch ? gelarMatch[1].trim() : "",
+    kode: kodeMatch ? kodeMatch[1].trim() : ""
+  };
+}
+
+function findBestLecturerData(context, message) {
+  const lines = extractLecturerLinesFromContext(context);
+
+  if (!lines.length) {
+    return null;
+  }
+
+  const nameTokens = getQuestionNameTokens(message);
+
+  const matchedLine =
+    lines.find((line) => {
+      const lowerLine = normalizeChatText(line);
+
+      return nameTokens.some((token) => lowerLine.includes(token));
+    }) || lines[0];
+
+  return extractLecturerDataFromLine(matchedLine);
+}
+
+function applyAdminUpdateToLecturer(lecturer, context, message) {
+  if (!lecturer) {
+    return null;
+  }
+
+  const updates = extractUpdateBlocksFromContext(context);
+  const nameTokens = getQuestionNameTokens(message);
+  const updatedLecturer = { ...lecturer };
+
+  updates.forEach((update) => {
+    const combined = normalizeChatText(
+      `${update.topic} ${update.original}`
+    );
+
+    const samePerson =
+      nameTokens.length === 0 ||
+      nameTokens.some((token) => combined.includes(token));
+
+    if (!samePerson || !update.value) {
+      return;
+    }
+
+    if (combined.includes("nip") || combined.includes("nidn")) {
+      updatedLecturer.nip = update.value;
+    }
+
+    if (combined.includes("kode dosen")) {
+      updatedLecturer.kode = update.value;
+    }
+
+    if (combined.includes("status")) {
+      updatedLecturer.status = update.value;
+    }
+
+    if (combined.includes("prodi") || combined.includes("program studi")) {
+      updatedLecturer.prodi = update.value;
+    }
+
+    if (combined.includes("gelar") || combined.includes("nama gelar")) {
+      updatedLecturer.gelar = update.value;
+    }
+  });
+
+  return updatedLecturer;
+}
+
+function buildLecturerAnswerFromContext(message, context) {
+  if (!isLecturerQuestion(message)) {
+    return null;
+  }
+
+  const lecturer = findBestLecturerData(context, message);
+
+  if (!lecturer) {
+    return null;
+  }
+
+  const updatedLecturer = applyAdminUpdateToLecturer(
+    lecturer,
+    context,
+    message
+  );
+
+  let answer = "Informasi dosen yang tersedia adalah:\n\n";
+
+  if (updatedLecturer.nama) {
+    answer += `- Nama: ${updatedLecturer.nama}\n`;
+  }
+
+  if (updatedLecturer.status) {
+    answer += `- Status Aktif: ${updatedLecturer.status}\n`;
+  }
+
+  if (updatedLecturer.prodi) {
+    answer += `- Prodi: ${updatedLecturer.prodi}\n`;
+  }
+
+  if (updatedLecturer.nip) {
+    answer += `- NIP YPT: ${updatedLecturer.nip}\n`;
+  }
+
+  if (updatedLecturer.gelar) {
+    answer += `- Nama Gelar: ${updatedLecturer.gelar}\n`;
+  }
+
+  if (updatedLecturer.kode) {
+    answer += `- Kode Dosen Baru: ${updatedLecturer.kode}\n`;
+  }
+
+  return answer.trim();
 }
 
 async function processChat(message) {
@@ -448,11 +690,13 @@ async function processChat(message) {
   const convertedMessage = convertMenuToQuestion(cleanMessage);
 
   /*
-    CEK UPDATE ADMIN LANGSUNG DI SINI.
-    Jika ada update yang cocok, langsung balas dari Database Update Chatbot,
-    tanpa menunggu Excel/PDF/Groq.
+    Direct update tetap dipakai untuk data umum,
+    tetapi tidak dipakai untuk dosen/NIP.
   */
-  const directUpdateContext = await buildUpdateContext(convertedMessage);
+  const directUpdateContext =
+    typeof require("./updateService").buildUpdateContext === "function"
+      ? await require("./updateService").buildUpdateContext(convertedMessage)
+      : "";
 
   if (shouldUseDirectUpdateAnswer(cleanMessage, directUpdateContext)) {
     const directAnswer = buildDirectUpdateAnswer(cleanMessage, directUpdateContext);
@@ -487,7 +731,18 @@ Kamu bisa tanya lagi dengan lebih spesifik, atau ketik "menu" untuk melihat pili
   const context = buildContext(orderedResults);
   const mainSource = orderedResults[0].source;
 
-  const aiAnswer = await askGroq(cleanMessage, context, mainSource.title);
+  let aiAnswer;
+
+  const lecturerAnswer = buildLecturerAnswerFromContext(
+    cleanMessage,
+    context
+  );
+
+  if (lecturerAnswer) {
+    aiAnswer = lecturerAnswer;
+  } else {
+    aiAnswer = await askGroq(cleanMessage, context, mainSource.title);
+  }
 
   const uniqueSources = buildUniqueSources(orderedResults);
 
